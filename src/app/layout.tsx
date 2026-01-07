@@ -50,7 +50,7 @@ export default function RootLayout({
               </CartProvider>
             </UserProfileDialogProvider>
           </FirebaseClientProvider>
-          <Toaster />
+          <Toaster suppressHydrationWarning />
         </ThemeProvider>
       </body>
     </html>
