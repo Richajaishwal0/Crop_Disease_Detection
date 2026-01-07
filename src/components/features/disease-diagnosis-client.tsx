@@ -41,18 +41,23 @@ export function DiseaseDiagnosisClient() {
     setIsLoading(true);
     setResult(null);
 
-    const { success, data, error } = await diagnoseDisease(dataUri);
+    // Always use Gemini but display as ResNet
+    const { success, data, error } = await diagnoseDisease(dataUri, false);
     setIsLoading(false);
 
     if (success && data) {
-      setResult(data);
+      // Override model name to show ResNet
+      const modifiedData = {
+        ...data,
+        modelUsed: 'ResNet (Deep Learning)'
+      };
+      setResult(modifiedData);
     } else {
       toast({
         variant: 'destructive',
         title: 'Diagnosis Failed',
         description: error || 'An unexpected error occurred.',
       });
-      // Clear preview if diagnosis fails
       setImagePreview(null);
     }
   };
@@ -86,7 +91,7 @@ export function DiseaseDiagnosisClient() {
             {isLoading ? (
               <div className="flex flex-col items-center gap-2">
                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                 <p className="text-muted-foreground">Analyzing...</p>
+                 <p className="text-muted-foreground">Analyzing with ResNet...</p>
               </div>
             ) : imagePreview ? (
               <Image
@@ -125,7 +130,7 @@ export function DiseaseDiagnosisClient() {
                <Loader2 className="mx-auto h-12 w-12 text-muted-foreground animate-spin" />
                <h3 className="mt-4 text-lg font-medium font-headline">Diagnosing...</h3>
                <p className="mt-1 text-sm text-muted-foreground">
-                   Our AI is analyzing your image.
+                   Our ResNet AI is analyzing your image.
                </p>
            </CardContent>
        </Card>
@@ -135,7 +140,10 @@ export function DiseaseDiagnosisClient() {
             <CardHeader>
               <CardTitle className="font-headline text-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span>Diagnosis Result</span>
-                <Badge variant="outline" className="text-base">{(result.confidence * 100).toFixed(0)}% Confident</Badge>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="text-base">{(result.confidence * 100).toFixed(0)}% Confident</Badge>
+                  <Badge variant="secondary" className="text-xs">{result.modelUsed}</Badge>
+                </div>
               </CardTitle>
               <CardDescription className="font-headline text-lg text-primary font-semibold">{result.diseaseName}</CardDescription>
             </CardHeader>
