@@ -1,108 +1,199 @@
-
 'use client';
 
-import { useCart } from '@/context/cart-provider';
+import { useState, useEffect } from 'react';
+import { useUser } from '@/firebase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Trash2, ShoppingCart, ArrowLeft } from 'lucide-react';
-import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
+import { Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { getCartItems, removeFromCart, updateCartQuantity, createOrder } from '@/app/actions/marketplace';
 import Link from 'next/link';
-import { Separator } from '@/components/ui/separator';
 
 export default function CartPage() {
-  const { cart, removeFromCart, updateQuantity, clearCart } = useCart();
+  const { user } = useUser();
+  const { toast } = useToast();
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
 
-  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const tax = subtotal * 0.05; // 5% tax
-  const total = subtotal + tax;
+  useEffect(() => {
+    if (user) {
+      loadCartItems();
+    }
+  }, [user]);
 
-  if (cart.length === 0) {
+  const loadCartItems = async () => {
+    if (!user) return;
+    
+    try {
+      const items = await getCartItems(user.uid);
+      setCartItems(items);
+    } catch (error) {
+      console.error('Error loading cart:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemoveItem = async (cartItemId: string) => {
+    const result = await removeFromCart(cartItemId);
+    if (result.success) {
+      loadCartItems();
+      toast({ title: 'Item removed from cart' });
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
+  };
+
+  const handleUpdateQuantity = async (cartItemId: string, newQuantity: number) => {
+    if (newQuantity < 1) return;
+    
+    const result = await updateCartQuantity(cartItemId, newQuantity);
+    if (result.success) {
+      loadCartItems();
+    } else {
+      toast({ title: 'Error', description: result.message, variant: 'destructive' });
+    }
+  };
+
+  const handleCheckout = () => {
+    if (cartItems.length === 0) return;
+    window.location.href = '/checkout';
+  };
+
+  const totalAmount = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const totalItems = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  if (!user) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-20rem)] text-center">
-        <ShoppingCart className="h-24 w-24 text-muted-foreground/50" />
-        <h1 className="mt-8 text-3xl font-bold font-headline">Your Cart is Empty</h1>
-        <p className="mt-2 text-muted-foreground">Looks like you haven't added anything to your cart yet.</p>
-        <Button asChild className="mt-6">
-          <Link href="/marketplace">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Start Shopping
-          </Link>
-        </Button>
+      <div className="text-center py-20">
+        <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground" />
+        <h2 className="text-2xl font-semibold mt-4">Please login to view your cart</h2>
+        <Link href="/login">
+          <Button className="mt-4">Login</Button>
+        </Link>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-4xl mx-auto">
-        <div className="space-y-2 mb-8">
-            <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Shopping Cart</h1>
-            <p className="text-muted-foreground">Review your items before checking out.</p>
-        </div>
+  if (loading) {
+    return <div className="text-center py-12">Loading cart...</div>;
+  }
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div className="md:col-span-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Cart Items ({cart.length})</CardTitle>
-                    </CardHeader>
-                    <CardContent className="divide-y">
-                        {cart.map(item => (
-                            <div key={item.id} className="flex items-center gap-4 py-4">
-                                <Image src={item.imageUrl} alt={item.name} width={80} height={80} className="rounded-md object-cover border" />
-                                <div className="flex-grow">
-                                    <h3 className="font-semibold">{item.name}</h3>
-                                    <p className="text-sm text-muted-foreground">₹{item.price.toFixed(2)}</p>
-                                </div>
-                                <input 
-                                    type="number" 
-                                    min="1" 
-                                    value={item.quantity}
-                                    onChange={(e) => updateQuantity(item.id, parseInt(e.target.value))}
-                                    className="w-16 rounded-md border-input border p-2 text-center"
-                                />
-                                <Button variant="ghost" size="icon" onClick={() => removeFromCart(item.id)}>
-                                    <Trash2 className="h-4 w-4 text-destructive" />
-                                </Button>
-                            </div>
-                        ))}
-                    </CardContent>
-                </Card>
-            </div>
-            <div className="md:col-span-1">
-                 <Card className="sticky top-20">
-                    <CardHeader>
-                        <CardTitle>Order Summary</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                        <div className="flex justify-between">
-                            <p className="text-muted-foreground">Subtotal</p>
-                            <p>₹{subtotal.toFixed(2)}</p>
-                        </div>
-                         <div className="flex justify-between">
-                            <p className="text-muted-foreground">Taxes (5%)</p>
-                            <p>₹{tax.toFixed(2)}</p>
-                        </div>
-                        <Separator />
-                        <div className="flex justify-between font-bold text-lg">
-                            <p>Total</p>
-                            <p>₹{total.toFixed(2)}</p>
-                        </div>
-                    </CardContent>
-                    <CardFooter className="flex-col gap-2">
-                        <Button asChild className="w-full">
-                            <Link href="/checkout">
-                                Proceed to Checkout
-                            </Link>
-                        </Button>
-                        <Button variant="outline" className="w-full" asChild>
-                            <Link href="/marketplace">
-                                Continue Shopping
-                            </Link>
-                        </Button>
-                    </CardFooter>
-                </Card>
-            </div>
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Shopping Cart</h1>
+        <p className="text-muted-foreground">{totalItems} items in your cart</p>
+      </div>
+
+      {cartItems.length === 0 ? (
+        <div className="text-center py-20">
+          <ShoppingBag className="mx-auto h-16 w-16 text-muted-foreground" />
+          <h2 className="text-2xl font-semibold mt-4">Your cart is empty</h2>
+          <p className="text-muted-foreground mt-2">Add some products to get started</p>
+          <Link href="/marketplace">
+            <Button className="mt-4">Browse Products</Button>
+          </Link>
         </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-4">
+            {cartItems.map((item) => (
+              <Card key={item.id}>
+                <CardContent className="p-6">
+                  <div className="flex gap-4">
+                    <img
+                      src={item.product.imageUrl}
+                      alt={item.product.name}
+                      className="w-20 h-20 object-cover rounded"
+                    />
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{item.product.name}</h3>
+                      <p className="text-sm text-muted-foreground line-clamp-2">
+                        {item.product.description}
+                      </p>
+                      <Badge variant="secondary" className="mt-1">
+                        {item.product.category}
+                      </Badge>
+                      <div className="flex items-center justify-between mt-4">
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity - 1)}
+                            disabled={item.quantity <= 1}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="w-8 text-center">{item.quantity}</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold">${(item.product.price * item.quantity).toFixed(2)}</p>
+                          <p className="text-sm text-muted-foreground">${item.product.price} each</p>
+                        </div>
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleRemoveItem(item.id)}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
+          <div>
+            <Card>
+              <CardHeader>
+                <CardTitle>Order Summary</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex justify-between">
+                  <span>Subtotal ({totalItems} items)</span>
+                  <span>${totalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span className="text-green-600">Free</span>
+                </div>
+                <div className="border-t pt-4">
+                  <div className="flex justify-between font-semibold text-lg">
+                    <span>Total</span>
+                    <span>${totalAmount.toFixed(2)}</span>
+                  </div>
+                </div>
+                <Button 
+                  className="w-full" 
+                  size="lg"
+                  onClick={handleCheckout}
+                  disabled={cartItems.length === 0}
+                >
+                  Proceed to Checkout
+                </Button>
+                <Link href="/marketplace">
+                  <Button variant="outline" className="w-full">
+                    Continue Shopping
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
