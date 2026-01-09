@@ -99,4 +99,78 @@
   .mask-gradient {
     mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
   }
+  
+  /* Improve clickability and touch targets */
+  .clickable {
+    cursor: pointer;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  .touch-target-sm {
+    min-height: 36px;
+    min-width: 36px;
+  }
+  
+  .touch-target-lg {
+    min-height: 48px;
+    min-width: 48px;
+  }
+  
+  /* Enhanced interactive states */
+  .interactive {
+    @apply transition-all duration-200 ease-in-out;
+    @apply hover:scale-[1.02] active:scale-[0.98];
+    @apply focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2;
+  }
+  
+  .card-interactive {
+    @apply transition-all duration-300 ease-in-out;
+    @apply hover:shadow-lg hover:-translate-y-1;
+    @apply active:translate-y-0 active:shadow-md;
+    @apply focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2;
+  }
+  
+  /* Sidebar specific styles */
+  .sidebar-item {
+    @apply relative overflow-hidden;
+  }
+  
+  .sidebar-item::before {
+    content: '';
+    @apply absolute inset-0 bg-accent opacity-0 transition-opacity duration-200;
+  }
+  
+  .sidebar-item:hover::before {
+    @apply opacity-10;
+  }
+  
+  .sidebar-item:active::before {
+    @apply opacity-20;
+  }
+  
+  .sidebar-item-active {
+    @apply bg-accent/10 text-accent-foreground;
+    @apply shadow-sm border-l-2 border-l-primary;
+  }
+  
+  /* Button press effects */
+  .btn-press {
+    @apply active:scale-95 active:brightness-95;
+    @apply transition-transform duration-75;
+  }
+  
+  /* Theme-aware shadows */
+  .shadow-theme {
+    @apply shadow-md dark:shadow-lg dark:shadow-black/20;
+  }
+  
+  .shadow-theme-hover {
+    @apply hover:shadow-lg hover:dark:shadow-xl hover:dark:shadow-black/30;
+  }
 }

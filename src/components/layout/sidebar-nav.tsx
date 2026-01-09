@@ -203,8 +203,10 @@ export function SidebarNav() {
     <>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
-          <Leaf className="w-8 h-8 text-primary" />
-          <span className="font-headline text-xl font-bold group-data-[collapsible=icon]:hidden">Farmingo</span>
+          <div className="p-1 rounded-md bg-primary/10">
+            <Leaf className="w-8 h-8 text-primary" />
+          </div>
+          <span className="font-headline text-xl font-bold group-data-[collapsible=icon]:hidden bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Farmingo</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2 space-y-2">
@@ -235,7 +237,7 @@ export function SidebarNav() {
         <SidebarMenu>
           {user ? (
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout} tooltip="Logout">
+              <SidebarMenuButton onClick={handleLogout} tooltip="Logout" className="text-destructive hover:text-destructive-foreground hover:bg-destructive/10">
                 <LogOut />
                 <span>Logout</span>
               </SidebarMenuButton>
