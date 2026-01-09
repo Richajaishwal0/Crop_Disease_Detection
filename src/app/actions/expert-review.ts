@@ -1,5 +1,7 @@
 'use server';
 
+import { initializeFirebase } from '@/firebase';
+import { collection, addDoc, getDocs, doc, updateDoc, query, where, orderBy, deleteDoc } from 'firebase/firestore';
 import type { DiagnoseCropDiseaseOutput } from '@/ai/flows/crop-disease-diagnosis';
 
 interface DiagnosisSubmission {
@@ -13,9 +15,30 @@ interface DiagnosisSubmission {
   expertFeedback?: string;
 }
 
-// Global storage that persists during server runtime
-global.diagnosisSubmissions = global.diagnosisSubmissions || [];
-global.notifications = global.notifications || [];
+const { firestore } = initializeFirebase();
+
+export async function clearAllExpertData(): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Clear diagnosis submissions
+    const submissionsSnapshot = await getDocs(collection(firestore, 'diagnosisSubmissions'));
+    const submissionDeletes = submissionsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // Clear notifications
+    const notificationsSnapshot = await getDocs(collection(firestore, 'notifications'));
+    const notificationDeletes = notificationsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    // Clear messages
+    const messagesSnapshot = await getDocs(collection(firestore, 'messages'));
+    const messageDeletes = messagesSnapshot.docs.map(doc => deleteDoc(doc.ref));
+    
+    await Promise.all([...submissionDeletes, ...notificationDeletes, ...messageDeletes]);
+    
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to clear expert data:', error);
+    return { success: false, error: 'Failed to clear expert data' };
+  }
+}
 
 export async function submitDiagnosisForReview(
   farmerId: string,
@@ -28,36 +51,32 @@ export async function submitDiagnosisForReview(
   error?: string;
 }> {
   try {
-    const submission: DiagnosisSubmission = {
-      id: `submission_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const submission = {
       farmerId,
       farmerName,
       diagnosis,
       imageData,
       submittedAt: new Date(),
-      status: 'pending'
+      status: 'pending' as const
     };
 
-    global.diagnosisSubmissions.push(submission);
+    const docRef = await addDoc(collection(firestore, 'diagnosisSubmissions'), submission);
 
     // Create notification
-    const notification = {
-      id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    await addDoc(collection(firestore, 'notifications'), {
       userId: 'expert_1',
       userType: 'expert',
       type: 'new_submission',
       title: 'New Diagnosis Submission',
       message: `${farmerName} has submitted a diagnosis for expert review`,
-      submissionId: submission.id,
+      submissionId: docRef.id,
       timestamp: new Date(),
       read: false
-    };
-
-    global.notifications.push(notification);
+    });
 
     return {
       success: true,
-      submissionId: submission.id
+      submissionId: docRef.id
     };
   } catch (error) {
     console.error('Failed to submit diagnosis for review:', error);
@@ -68,21 +87,52 @@ export async function submitDiagnosisForReview(
   }
 }
 
-export async function getPendingDiagnoses(): Promise<DiagnosisSubmission[]> {
-  return (global.diagnosisSubmissions || []);
-}
-
-export async function getAllDiagnoses(): Promise<DiagnosisSubmission[]> {
-  return (global.diagnosisSubmissions || []);
+export async function getPendingDiagnoses(): Promise<any[]> {
+  try {
+    // Simple query without orderBy to avoid index requirement
+    const snapshot = await getDocs(collection(firestore, 'diagnosisSubmissions'));
+    const diagnoses = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        submittedAt: data.submittedAt?.toDate?.() || data.submittedAt
+      };
+    });
+    // Sort in memory instead
+    return diagnoses.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+  } catch (error) {
+    console.error('Error fetching diagnoses:', error);
+    return [];
+  }
 }
 
 export async function getNotifications(
   userId: string,
   userType: 'farmer' | 'expert'
 ): Promise<any[]> {
-  return (global.notifications || [])
-    .filter(n => n.userId === userId && n.userType === userType)
-    .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  try {
+    // Simple query without orderBy to avoid index requirement
+    const q = query(
+      collection(firestore, 'notifications'),
+      where('userId', '==', userId),
+      where('userType', '==', userType)
+    );
+    const snapshot = await getDocs(q);
+    const notifications = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate?.() || data.timestamp
+      };
+    });
+    // Sort in memory instead
+    return notifications.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return [];
+  }
 }
 
 export async function sendMessage(
@@ -93,10 +143,7 @@ export async function sendMessage(
   messageText: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    global.messages = global.messages || [];
-    
-    const message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    await addDoc(collection(firestore, 'messages'), {
       submissionId,
       senderId,
       senderName,
@@ -104,29 +151,7 @@ export async function sendMessage(
       message: messageText,
       timestamp: new Date(),
       read: false
-    };
-
-    global.messages.push(message);
-
-    // Create notification for recipient
-    const submission = (global.diagnosisSubmissions || []).find(d => d.id === submissionId);
-    const recipientId = senderType === 'expert' ? submission?.farmerId : 'expert_1';
-    const recipientType = senderType === 'expert' ? 'farmer' : 'expert';
-    
-    // Don't create notifications for messages - they appear in Messages section
-    // const notification = {
-    //   id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    //   userId: recipientId,
-    //   userType: recipientType,
-    //   type: 'new_message',
-    //   title: `New message from ${senderName}`,
-    //   message: messageText.substring(0, 100) + (messageText.length > 100 ? '...' : ''),
-    //   submissionId,
-    //   timestamp: new Date(),
-    //   read: false
-    // };
-
-    // global.notifications.push(notification);
+    });
 
     return { success: true };
   } catch (error) {
@@ -136,9 +161,66 @@ export async function sendMessage(
 }
 
 export async function getMessages(submissionId: string): Promise<any[]> {
-  return (global.messages || [])
-    .filter(m => m.submissionId === submissionId)
-    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  try {
+    // Simple query without orderBy to avoid index requirement
+    const q = query(
+      collection(firestore, 'messages'),
+      where('submissionId', '==', submissionId)
+    );
+    const snapshot = await getDocs(q);
+    const messages = snapshot.docs.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        ...data,
+        timestamp: data.timestamp?.toDate?.() || data.timestamp
+      };
+    });
+    // Sort in memory instead
+    return messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    return [];
+  }
+}
+
+export async function markNotificationAsRead(notificationId: string): Promise<{ success: boolean }> {
+  try {
+    const notificationRef = doc(firestore, 'notifications', notificationId);
+    await updateDoc(notificationRef, { read: true });
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
+    return { success: false };
+  }
+}
+
+export async function markAllNotificationsAsRead(userId: string, userType: 'farmer' | 'expert'): Promise<{ success: boolean }> {
+  try {
+    const q = query(
+      collection(firestore, 'notifications'),
+      where('userId', '==', userId),
+      where('userType', '==', userType),
+      where('read', '==', false)
+    );
+    const snapshot = await getDocs(q);
+    const updates = snapshot.docs.map(doc => updateDoc(doc.ref, { read: true }));
+    await Promise.all(updates);
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to mark all notifications as read:', error);
+    return { success: false };
+  }
+}
+
+export async function deleteNotification(notificationId: string): Promise<{ success: boolean }> {
+  try {
+    await deleteDoc(doc(firestore, 'notifications', notificationId));
+    return { success: true };
+  } catch (error) {
+    console.error('Failed to delete notification:', error);
+    return { success: false };
+  }
 }
 
 export async function updateDiagnosisStatus(
@@ -150,31 +232,28 @@ export async function updateDiagnosisStatus(
   error?: string;
 }> {
   try {
-    const submission = (global.diagnosisSubmissions || []).find(d => d.id === submissionId);
-    if (!submission) {
-      return {
-        success: false,
-        error: 'Diagnosis submission not found'
-      };
+    const submissionRef = doc(firestore, 'diagnosisSubmissions', submissionId);
+    await updateDoc(submissionRef, {
+      status,
+      expertFeedback: expertFeedback || ''
+    });
+
+    // Get submission to create notification
+    const submissions = await getPendingDiagnoses();
+    const submission = submissions.find(s => s.id === submissionId);
+    
+    if (submission) {
+      await addDoc(collection(firestore, 'notifications'), {
+        userId: submission.farmerId,
+        userType: 'farmer',
+        type: 'status_update',
+        title: `Diagnosis ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+        message: expertFeedback || `Your diagnosis has been ${status} by an expert`,
+        submissionId,
+        timestamp: new Date(),
+        read: false
+      });
     }
-
-    submission.status = status;
-    submission.expertFeedback = expertFeedback;
-
-    // Create notification for farmer
-    const notification = {
-      id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId: submission.farmerId,
-      userType: 'farmer',
-      type: 'status_update',
-      title: `Diagnosis ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-      message: expertFeedback || `Your diagnosis has been ${status} by an expert`,
-      submissionId,
-      timestamp: new Date(),
-      read: false
-    };
-
-    global.notifications.push(notification);
 
     return { success: true };
   } catch (error) {

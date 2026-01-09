@@ -36,9 +36,10 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { collection, query, where } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
+import { getNotifications } from '@/app/actions/expert-review';
 
 const mainNav = [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
@@ -70,13 +71,6 @@ const platformNav = [
     disabled: false,
     requiresAuth: true,
   },
-  {
-    href: '/notifications',
-    label: 'Notifications',
-    icon: Bell,
-    disabled: false,
-    requiresAuth: true,
-  },
 ];
 
 const userNav = [
@@ -99,7 +93,25 @@ type NavCategoryProps = {
 
 function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
   const firestore = useFirestore();
+  
+  // Load notifications for current user
+  useEffect(() => {
+    if (user) {
+      loadUserNotifications();
+    }
+  }, [user]);
+
+  const loadUserNotifications = async () => {
+    if (!user) return;
+    try {
+      const userNotifications = await getNotifications(user.uid, 'farmer');
+      setNotifications(userNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
   
   // Get unread message count
   const conversationsQuery = useMemo(() => {
@@ -120,6 +132,10 @@ function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
       return lastMessageDate > lastReadDate && conv.lastMessage?.senderId !== user.uid;
     }).length;
   }, [conversations, user]);
+
+  const unreadNotifications = useMemo(() => {
+    return notifications.filter(n => !n.read).length;
+  }, [notifications]);
   
   const filteredItems = items.filter(item => !item.requiresAuth || user);
 

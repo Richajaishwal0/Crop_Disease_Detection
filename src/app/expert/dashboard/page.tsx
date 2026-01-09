@@ -32,10 +32,9 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { getPendingDiagnoses, updateDiagnosisStatus, getNotifications } from '@/app/actions/expert-review';
+import { getPendingDiagnoses, updateDiagnosisStatus, getNotifications, clearAllExpertData } from '@/app/actions/expert-review';
 import { SubmissionMessaging } from '@/components/messaging/submission-messaging';
 import { ExpertMessages } from '@/components/messaging/expert-messages';
-import { testSubmissionFlow } from '@/app/actions/test-flow';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 
 export default function ExpertDashboard() {
@@ -169,7 +168,7 @@ export default function ExpertDashboard() {
       title: 'Logged Out',
       description: 'You have been successfully logged out.',
     });
-    router.push('/expert/login');
+    router.push('/login');
   };
 
   if (!expert) {
@@ -321,29 +320,38 @@ export default function ExpertDashboard() {
                     <AlertTriangle className="h-5 w-5 text-orange-500" />
                     Pending AI Diagnosis Reviews ({stats.pending})
                   </CardTitle>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={() => { loadDiagnoses(); loadNotifications(); }}
-                  >
-                    Refresh
-                  </Button>
-                  <Button 
-                    variant="secondary" 
-                    size="sm" 
-                    onClick={async () => {
-                      const result = await testSubmissionFlow();
-                      console.log('Test result:', result);
-                      toast({
-                        title: 'Test Complete',
-                        description: `Submissions: ${result.pendingCount}, Notifications: ${result.notificationCount}`,
-                      });
-                      loadDiagnoses();
-                      loadNotifications();
-                    }}
-                  >
-                    Test Flow
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={() => { loadDiagnoses(); loadNotifications(); }}
+                    >
+                      Refresh
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={async () => {
+                        const result = await clearAllExpertData();
+                        if (result.success) {
+                          toast({
+                            title: 'Data Cleared',
+                            description: 'All expert review data has been cleared.',
+                          });
+                          loadDiagnoses();
+                          loadNotifications();
+                        } else {
+                          toast({
+                            title: 'Error',
+                            description: 'Failed to clear data.',
+                            variant: 'destructive'
+                          });
+                        }
+                      }}
+                    >
+                      Clear All Data
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">

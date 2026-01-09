@@ -13,7 +13,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { Bell, LogOut, Search, User as UserIcon, Settings } from 'lucide-react';
+import { Bell, LogOut, Search, User as UserIcon, Settings, X, CheckCheck } from 'lucide-react';
 import Link from 'next/link';
 import { signOut } from 'firebase/auth';
 import { ThemeToggle } from './theme-toggle';
@@ -24,6 +24,9 @@ import { useSearch } from '@/context/search-provider';
 import { useState, useEffect, useMemo } from 'react';
 import { collection, query, where } from 'firebase/firestore';
 import { useCollection } from '@/firebase/firestore/use-collection';
+import { getNotifications, markAllNotificationsAsRead, deleteNotification } from '@/app/actions/expert-review';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 export function Header() {
   const { user } = useUser();
@@ -32,9 +35,58 @@ export function Header() {
   const pathname = usePathname();
   const router = useRouter();
   const { searchTerm, setSearchTerm } = useSearch();
+  const { toast } = useToast();
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   // State for the community search bar
   const [communitySearchQuery, setCommunitySearchQuery] = useState('');
+
+  // Load notifications
+  useEffect(() => {
+    if (user) {
+      loadNotifications();
+    }
+  }, [user]);
+
+  const loadNotifications = async () => {
+    if (!user) return;
+    try {
+      const userNotifications = await getNotifications(user.uid, 'farmer');
+      setNotifications(userNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+      setNotifications([]);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (!user) return;
+    try {
+      const result = await markAllNotificationsAsRead(user.uid, 'farmer');
+      if (result.success) {
+        loadNotifications();
+        toast({ title: 'All notifications marked as read' });
+      }
+    } catch (error) {
+      console.error('Error marking notifications as read:', error);
+    }
+  };
+
+  const handleDeleteNotification = async (notificationId: string) => {
+    try {
+      const result = await deleteNotification(notificationId);
+      if (result.success) {
+        loadNotifications();
+        toast({ title: 'Notification deleted' });
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+    }
+  };
+
+  const unreadNotifications = useMemo(() => {
+    return notifications.filter(n => !n.read).length;
+  }, [notifications]);
 
   // Get unread message count
   const conversationsQuery = useMemo(() => {
@@ -111,12 +163,62 @@ export function Header() {
         <ThemeToggle />
         <LanguageSwitcher />
         {user && (
-          <Button variant="ghost" size="icon" asChild>
-            <Link href="/notifications">
-              <Bell className="h-5 w-5" />
-              <span className="sr-only">Notifications</span>
-            </Link>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="relative">
+                <Bell className="h-5 w-5" />
+                {unreadNotifications > 0 && (
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {unreadNotifications}
+                  </span>
+                )}
+                <span className="sr-only">Notifications</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80">
+              <div className="flex items-center justify-between p-2">
+                <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                {notifications.length > 0 && (
+                  <Button variant="ghost" size="sm" onClick={handleMarkAllRead}>
+                    <CheckCheck className="h-4 w-4 mr-1" />
+                    Mark all read
+                  </Button>
+                )}
+              </div>
+              <DropdownMenuSeparator />
+              {notifications.length === 0 ? (
+                <DropdownMenuItem disabled>
+                  No notifications
+                </DropdownMenuItem>
+              ) : (
+                <div className="max-h-96 overflow-y-auto">
+                  {notifications.slice(0, 10).map((notification) => (
+                    <div key={notification.id} className="flex items-start gap-2 p-3 hover:bg-accent">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <p className="font-medium text-sm">{notification.title}</p>
+                          {!notification.read && (
+                            <Badge variant="secondary" className="text-xs">New</Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground mb-1">{notification.message}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(notification.timestamp).toLocaleString()}
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteNotification(notification.id)}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
 
         {user ? (
