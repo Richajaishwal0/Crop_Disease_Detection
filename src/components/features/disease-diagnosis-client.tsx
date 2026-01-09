@@ -7,22 +7,29 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
 import {
   AlertCircle,
   CheckCircle2,
   Image as ImageIcon,
   Loader2,
   Upload,
+  UserCheck,
+  Download,
 } from 'lucide-react';
 import type { DiagnoseCropDiseaseOutput } from '@/ai/flows/crop-disease-diagnosis';
 import { diagnoseDisease } from '@/app/actions/diagnose-disease';
+import { submitDiagnosisForReview } from '@/app/actions/expert-review';
+import { generateDiagnosisReport } from '@/lib/pdf-generator';
 
 export function DiseaseDiagnosisClient() {
   const [result, setResult] = useState<DiagnoseCropDiseaseOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmittingForReview, setIsSubmittingForReview] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user } = useUser();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,12 +48,10 @@ export function DiseaseDiagnosisClient() {
     setIsLoading(true);
     setResult(null);
 
-    // Always use Gemini but display as ResNet
     const { success, data, error } = await diagnoseDisease(dataUri, false);
     setIsLoading(false);
 
     if (success && data) {
-      // Override model name to show ResNet
       const modifiedData = {
         ...data,
         modelUsed: 'ResNet (Deep Learning)'
@@ -60,6 +65,50 @@ export function DiseaseDiagnosisClient() {
       });
       setImagePreview(null);
     }
+  };
+
+  const handleSubmitForExpertReview = async () => {
+    if (!result || !imagePreview || !user) return;
+    
+    setIsSubmittingForReview(true);
+    
+    try {
+      const { success, submissionId, error } = await submitDiagnosisForReview(
+        user.uid,
+        user.displayName || user.email || 'Anonymous User',
+        result,
+        imagePreview
+      );
+      
+      if (success) {
+        toast({
+          title: 'Submitted for Expert Review',
+          description: 'An agricultural expert will review your diagnosis shortly.',
+        });
+      } else {
+        throw new Error(error || 'Failed to submit for review');
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'Unable to submit for expert review. Please try again.',
+      });
+    } finally {
+      setIsSubmittingForReview(false);
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (!result || !user) return;
+    
+    const pdf = generateDiagnosisReport(
+      result,
+      user.displayName || user.email || 'Farmer',
+      imagePreview || undefined
+    );
+    
+    pdf.save(`crop-diagnosis-${result.diseaseName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleUploadClick = () => {
@@ -166,11 +215,41 @@ export function DiseaseDiagnosisClient() {
                   <p className="text-sm">{result.followUpSteps}</p>
                 </div>
               </div>
-              <Button asChild className="w-full">
-                <a href={result.communityPostsLink} target="_blank" rel="noopener noreferrer">
-                  View Community Posts
-                </a>
-              </Button>
+              <div className="grid gap-3">
+                <Button asChild>
+                  <a href={result.communityPostsLink} target="_blank" rel="noopener noreferrer">
+                    View Community Posts
+                  </a>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleDownloadReport}
+                  className="w-full"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PDF Report
+                </Button>
+                {user && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSubmitForExpertReview}
+                    disabled={isSubmittingForReview}
+                    className="w-full"
+                  >
+                    {isSubmittingForReview ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="mr-2 h-4 w-4" />
+                        Submit for Expert Review
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}

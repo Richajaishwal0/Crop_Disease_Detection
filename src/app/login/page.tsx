@@ -26,12 +26,13 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { Loader2, Mail, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Mail, KeyRound, Eye, EyeOff, UserCheck, Tractor } from 'lucide-react';
 import Link from 'next/link';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   FirestorePermissionError,
   type SecurityRuleContext,
@@ -41,6 +42,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 const formSchema = z.object({
   email: z.string().email('Please enter a valid email.'),
   password: z.string().min(1, 'Password is required.'),
+  role: z.enum(['farmer', 'expert'], { required_error: 'Please select a role.' }),
 });
 
 export default function LoginPage() {
@@ -57,6 +59,7 @@ export default function LoginPage() {
     defaultValues: {
       email: '',
       password: '',
+      role: 'farmer',
     },
   });
 
@@ -64,8 +67,62 @@ export default function LoginPage() {
     if (!auth) return;
     setIsLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
-      router.push('/');
+      if (values.role === 'expert') {
+        // Expert login - check demo credentials first
+        if (values.email === 'expert@farmingo.com' && values.password === 'expert123') {
+          localStorage.setItem('expertAuth', JSON.stringify({
+            id: 'expert_1',
+            name: 'Dr. Sarah Johnson',
+            email: 'expert@farmingo.com',
+            specialization: 'Plant Pathology',
+            role: 'expert'
+          }));
+          
+          toast({
+            title: 'Expert Login Successful',
+            description: 'Welcome to the Expert Dashboard',
+          });
+          router.push('/expert/dashboard');
+        } else {
+          // Try Firebase authentication for expert accounts
+          try {
+            const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+            const user = userCredential.user;
+            
+            // Check if user has expert role in Firestore
+            if (firestore) {
+              const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+              if (userDoc.exists() && userDoc.data().role === 'expert') {
+                localStorage.setItem('expertAuth', JSON.stringify({
+                  id: user.uid,
+                  name: user.displayName || 'Expert',
+                  email: user.email,
+                  specialization: 'Agricultural Expert',
+                  role: 'expert'
+                }));
+                router.push('/expert/dashboard');
+                return;
+              }
+            }
+            
+            toast({
+              variant: 'destructive',
+              title: 'Access Denied',
+              description: 'This account is not registered as an expert.',
+            });
+          } catch (error: any) {
+            toast({
+              variant: 'destructive',
+              title: 'Invalid Expert Credentials',
+              description: 'Please check your credentials or use demo account.',
+            });
+          }
+        }
+      } else {
+        // Farmer login with Firebase
+        await signInWithEmailAndPassword(auth, values.email, values.password);
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       console.error(error);
       toast({
@@ -180,6 +237,38 @@ export default function LoginPage() {
         <CardContent className="space-y-4">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <FormField
+                control={form.control}
+                name="role"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Login as</FormLabel>
+                    <FormControl>
+                      <RadioGroup
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        className="flex gap-6"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="farmer" id="farmer" />
+                          <label htmlFor="farmer" className="flex items-center gap-2 cursor-pointer">
+                            <Tractor className="h-4 w-4" />
+                            Farmer
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="expert" id="expert" />
+                          <label htmlFor="expert" className="flex items-center gap-2 cursor-pointer">
+                            <UserCheck className="h-4 w-4" />
+                            Expert
+                          </label>
+                        </div>
+                      </RadioGroup>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
               <FormField
                 control={form.control}
                 name="email"
@@ -300,6 +389,12 @@ export default function LoginPage() {
             <Link href="/signup" className="underline">
               Sign up
             </Link>
+          </div>
+          
+          <div className="mt-4 p-3 bg-muted rounded-lg text-center text-sm text-muted-foreground">
+            <p className="font-medium mb-1">Demo Credentials:</p>
+            <p><strong>Expert:</strong> expert@farmingo.com / expert123</p>
+            <p><strong>Farmer:</strong> Use Google sign-in or create account</p>
           </div>
         </CardContent>
       </Card>

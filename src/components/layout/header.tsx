@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { Bell, LogOut, Search, User as UserIcon, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { signOut } from 'firebase/auth';
@@ -21,17 +21,40 @@ import LanguageSwitcher from './LanguageSwitcher';
 import { usePathname, useRouter } from 'next/navigation';
 import { Input } from '../ui/input';
 import { useSearch } from '@/context/search-provider';
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { collection, query, where } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 
 export function Header() {
   const { user } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const pathname = usePathname();
   const router = useRouter();
   const { searchTerm, setSearchTerm } = useSearch();
 
   // State for the community search bar
   const [communitySearchQuery, setCommunitySearchQuery] = useState('');
+
+  // Get unread message count
+  const conversationsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(
+      collection(firestore, 'conversations'),
+      where('participants', 'array-contains', user.uid)
+    );
+  }, [firestore, user]);
+
+  const { data: conversations } = useCollection(conversationsQuery);
+  
+  const unreadCount = useMemo(() => {
+    if (!conversations || !user) return 0;
+    return conversations.filter(conv => {
+      const lastMessageDate = conv.lastMessage?.createdAt?.toDate() || new Date(0);
+      const lastReadDate = conv.lastRead?.[user.uid]?.toDate() || new Date(0);
+      return lastMessageDate > lastReadDate && conv.lastMessage?.senderId !== user.uid;
+    }).length;
+  }, [conversations, user]);
 
   const handleLogout = async () => {
     if (auth) {
@@ -88,9 +111,11 @@ export function Header() {
         <ThemeToggle />
         <LanguageSwitcher />
         {user && (
-          <Button variant="ghost" size="icon">
-            <Bell className="h-5 w-5" />
-            <span className="sr-only">Notifications</span>
+          <Button variant="ghost" size="icon" asChild>
+            <Link href="/notifications">
+              <Bell className="h-5 w-5" />
+              <span className="sr-only">Notifications</span>
+            </Link>
           </Button>
         )}
 

@@ -97,6 +97,57 @@ export async function getOrCreateConversation(
 }
 
 
+export async function createConversation(
+  firestore: Firestore,
+  participants: string[],
+  participantDetails: { [key: string]: { username: string; photoURL?: string } }
+): Promise<string> {
+  // Check if conversation already exists
+  const conversationsRef = collection(firestore, 'conversations');
+  const q = query(
+    conversationsRef,
+    where('participants', 'array-contains', participants[0])
+  );
+  
+  try {
+    const querySnapshot = await getDocs(q);
+    const existingConversation = querySnapshot.docs.find(doc => 
+      doc.data().participants.includes(participants[1]) && 
+      doc.data().participants.length === 2
+    );
+
+    if (existingConversation) {
+      return existingConversation.id;
+    }
+  } catch (error) {
+    console.log('Query failed, creating new conversation');
+  }
+
+  // Create new conversation without batch
+  const now = serverTimestamp();
+
+  const newConversationData = {
+    participants,
+    participantDetails,
+    createdAt: now,
+    updatedAt: now,
+    lastMessage: {
+      text: 'Expert consultation started',
+      senderId: participants[0],
+      createdAt: now,
+    },
+    lastRead: participants.reduce((acc, id) => ({ ...acc, [id]: now }), {})
+  };
+  
+  try {
+    const docRef = await addDoc(conversationsRef, newConversationData);
+    return docRef.id;
+  } catch (error) {
+    console.error('Failed to create conversation:', error);
+    throw error;
+  }
+}
+
 export async function sendMessage(firestore: Firestore, conversationId: string, senderId: string, text: string) {
     const batch = writeBatch(firestore);
     const now = serverTimestamp();

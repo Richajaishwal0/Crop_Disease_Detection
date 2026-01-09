@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import {
   Bug,
@@ -30,12 +30,15 @@ import {
   User,
   UserPlus,
   Users,
-  Settings
+  Settings,
+  Bell
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { collection, query, where } from 'firebase/firestore';
+import { useCollection } from '@/firebase/firestore/use-collection';
 
 const mainNav = [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
@@ -67,6 +70,13 @@ const platformNav = [
     disabled: false,
     requiresAuth: true,
   },
+  {
+    href: '/notifications',
+    label: 'Notifications',
+    icon: Bell,
+    disabled: false,
+    requiresAuth: true,
+  },
 ];
 
 const userNav = [
@@ -89,6 +99,28 @@ type NavCategoryProps = {
 
 function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const firestore = useFirestore();
+  
+  // Get unread message count
+  const conversationsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(
+      collection(firestore, 'conversations'),
+      where('participants', 'array-contains', user.uid)
+    );
+  }, [firestore, user]);
+
+  const { data: conversations } = useCollection(conversationsQuery);
+  
+  const unreadCount = useMemo(() => {
+    if (!conversations || !user) return 0;
+    return conversations.filter(conv => {
+      const lastMessageDate = conv.lastMessage?.createdAt?.toDate() || new Date(0);
+      const lastReadDate = conv.lastRead?.[user.uid]?.toDate() || new Date(0);
+      return lastMessageDate > lastReadDate && conv.lastMessage?.senderId !== user.uid;
+    }).length;
+  }, [conversations, user]);
+  
   const filteredItems = items.filter(item => !item.requiresAuth || user);
 
   if (filteredItems.length === 0) {
@@ -119,6 +151,11 @@ function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
                 <Link href={item.href}>
                   <item.icon />
                   <span>{item.label}</span>
+                  {item.href === '/messages' && unreadCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>

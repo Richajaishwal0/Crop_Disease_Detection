@@ -73,6 +73,7 @@ const formSchema = z
     confirmPassword: z.string(),
     region: z.string().min(1, 'Region is required.'),
     isFarmer: z.boolean().default(false).optional(),
+    isExpert: z.boolean().default(false).optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords don't match",
@@ -99,6 +100,7 @@ export default function SignupPage() {
       confirmPassword: '',
       region: '',
       isFarmer: false,
+      isExpert: false,
     },
   });
 
@@ -137,14 +139,26 @@ export default function SignupPage() {
         createdAt: new Date(),
         followers: [],
         following: [],
-        role: values.isFarmer ? 'farmer' : 'user',
+        role: values.isExpert ? 'expert' : values.isFarmer ? 'farmer' : 'user',
         isVerified: false,
         region: values.region,
       };
 
       setDoc(userDocRef, newUserDoc)
         .then(() => {
-          router.push('/');
+          if (values.isExpert) {
+            // Store expert auth for dashboard access
+            localStorage.setItem('expertAuth', JSON.stringify({
+              id: user.uid,
+              name: values.displayName,
+              email: user.email,
+              specialization: 'Agricultural Expert',
+              role: 'expert'
+            }));
+            router.push('/expert/dashboard');
+          } else {
+            router.push('/dashboard');
+          }
         })
         .catch(async (serverError) => {
           const permissionError = new FirestorePermissionError({
@@ -418,6 +432,23 @@ export default function SignupPage() {
                     </FormControl>
                     <div className="space-y-1 leading-none">
                       <FormLabel>Are you a farmer?</FormLabel>
+                    </div>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="isExpert"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Are you an agricultural expert?</FormLabel>
                     </div>
                   </FormItem>
                 )}
