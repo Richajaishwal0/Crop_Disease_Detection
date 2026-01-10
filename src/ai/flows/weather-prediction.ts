@@ -1,81 +1,103 @@
 'use server';
 
 /**
- * @fileOverview Provides weather analysis and farming recommendations.
- *
- * - getWeatherAnalysis - A function that provides weather-based farming advice.
- * - WeatherAnalysisInput - The input type for the flow.
- * - WeatherAnalysisOutput - The return type for the flow.
+ * @fileOverview Real weather analysis and farming recommendations
+ * using Open-Meteo (free) + Genkit (LLM only for advice).
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
 
-// Define a tool for the AI to use to get weather data.
-// In a real app, this would call a weather API.
-const getWeatherForLocation = ai.defineTool(
-  {
-    name: 'getWeatherForLocation',
-    description: 'Get the current weather for a given location.',
-    inputSchema: z.object({
-      location: z.string().describe('The city and country, e.g., "Delhi, India"'),
-    }),
-    outputSchema: z.object({
-      temperature: z.number().describe('Temperature in Celsius.'),
-      humidity: z.number().describe('Humidity percentage.'),
-      windSpeed: z.number().describe('Wind speed in km/h.'),
-      description: z.string().describe('A brief text description of the weather (e.g., "scattered clouds").'),
-      precipitationChance: z.number().describe('Chance of precipitation in percentage.'),
-    }),
-  },
-  async ({ location }) => {
-    // This is a mock implementation.
-    // In a real-world scenario, you would call a weather API here.
-    console.log(`Fetching weather for ${location}...`);
-    // Let's generate some plausible random data.
-    const temp = 15 + Math.random() * 15; // 15-30 C
-    const humidity = 40 + Math.random() * 50; // 40-90%
-    const windSpeed = 5 + Math.random() * 15; // 5-20 km/h
-    const precip = Math.random() < 0.3 ? Math.random() * 100 : 0; // 30% chance of rain
-    const descriptions = ["clear sky", "few clouds", "scattered clouds", "broken clouds", "shower rain", "rain", "thunderstorm", "snow", "mist"];
-    const description = descriptions[Math.floor(Math.random() * descriptions.length)];
-    
-    return {
-      temperature: parseFloat(temp.toFixed(1)),
-      humidity: parseFloat(humidity.toFixed(0)),
-      windSpeed: parseFloat(windSpeed.toFixed(1)),
-      description: description,
-      precipitationChance: parseFloat(precip.toFixed(0)),
-    };
-  }
-);
+/* =====================================================
+   1️⃣ HELPERS (REAL WEATHER, NO LLM)
+===================================================== */
 
+// Geocode city → latitude & longitude
+async function geocodeLocation(location: string) {
+  const res = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
+      location
+    )}&count=1&language=en&format=json`
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to geocode location');
+  }
+
+  const data = await res.json();
+
+  if (!data.results || data.results.length === 0) {
+    throw new Error('Location not found');
+  }
+
+  const place = data.results[0];
+
+  return {
+    resolvedLocation: `${place.name}, ${place.country}`,
+    latitude: place.latitude,
+    longitude: place.longitude,
+  };
+}
+
+// Fetch current weather from Open-Meteo
+async function fetchWeather(latitude: number, longitude: number) {
+  const res = await fetch(
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&timezone=auto`
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch weather');
+  }
+
+  const data = await res.json();
+  const current = data.current;
+
+  return {
+    temperature: current.temperature_2m,
+    humidity: current.relative_humidity_2m,
+    windSpeed: current.wind_speed_10m,
+    precipitationChance: current.precipitation > 0 ? 60 : 0,
+    description: current.precipitation > 0 ? 'Rainy' : 'Clear / Cloudy',
+  };
+}
+
+/* =====================================================
+   2️⃣ INPUT / OUTPUT SCHEMAS
+===================================================== */
 
 const WeatherAnalysisInputSchema = z.object({
   location: z.string(),
 });
-export type WeatherAnalysisInput = z.infer<typeof WeatherAnalysisInputSchema>;
-
+export type WeatherAnalysisInput = z.infer<
+  typeof WeatherAnalysisInputSchema
+>;
 
 const WeatherAnalysisOutputSchema = z.object({
-    location: z.string().describe("The location for the weather analysis."),
-    forecast: z.object({
-        temperature: z.number().describe('Temperature in Celsius.'),
-        humidity: z.number().describe('Humidity percentage.'),
-        windSpeed: z.number().describe('Wind speed in km/h.'),
-        description: z.string().describe('A brief text description of the weather (e.g., "scattered clouds").'),
-        precipitationChance: z.number().describe('Chance of precipitation in percentage.'),
-    }),
-    recommendations: z.array(z.object({
-        category: z.string().describe("The category of the recommendation (e.g., 'Irrigation', 'Pest Control', 'Planting')."),
-        title: z.string().describe("A short, catchy title for the tip."),
-        tip: z.string().describe('The detailed recommendation or tip for the farmer.'),
-    })).describe("An array of 2-3 actionable recommendations for farmers based on the weather forecast."),
-    suitableActivities: z.array(z.string()).describe("A list of 2-3 farming activities that are most suitable for the current weather conditions."),
-    recommendedCropsForHarvest: z.array(z.string()).describe("A list of 1-2 crops that are ideal for harvesting in the current weather, if applicable. If no crops are suitable for harvest, return an empty array."),
+  location: z.string(),
+  forecast: z.object({
+    temperature: z.number(),
+    humidity: z.number(),
+    windSpeed: z.number(),
+    description: z.string(),
+    precipitationChance: z.number(),
+  }),
+  suitableActivities: z.array(z.string()),
+  recommendedCropsForHarvest: z.array(z.string()),
+  recommendations: z.array(
+    z.object({
+      category: z.string(),
+      title: z.string(),
+      tip: z.string(),
+    })
+  ),
 });
-export type WeatherAnalysisOutput = z.infer<typeof WeatherAnalysisOutputSchema>;
+export type WeatherAnalysisOutput = z.infer<
+  typeof WeatherAnalysisOutputSchema
+>;
 
+/* =====================================================
+   3️⃣ PUBLIC ACTION
+===================================================== */
 
 export async function getWeatherAnalysis(
   input: WeatherAnalysisInput
@@ -83,35 +105,79 @@ export async function getWeatherAnalysis(
   return getWeatherAnalysisFlow(input);
 }
 
+/* =====================================================
+   4️⃣ GENKIT FLOW (CORRECT DESIGN)
+===================================================== */
 
-export const getWeatherAnalysisFlow = ai.defineFlow({
+export const getWeatherAnalysisFlow = ai.defineFlow(
+  {
     name: 'getWeatherAnalysisFlow',
     inputSchema: WeatherAnalysisInputSchema,
     outputSchema: WeatherAnalysisOutputSchema,
-}, async (input) => {
+  },
+  async (input) => {
+    /* ---------- STEP 1: REAL WEATHER (NO LLM) ---------- */
+    const geo = await geocodeLocation(input.location);
+    const weather = await fetchWeather(geo.latitude, geo.longitude);
+
+    /* ---------- STEP 2: LLM ONLY FOR ADVICE ---------- */
     const prompt = `
-    You are an expert agricultural advisor. Your role is to provide actionable,
-    easy-to-understand advice to farmers based on the weather forecast.
-    
-    1. First, use the getWeatherForLocation tool to get the weather for the user's location.
-    2. Then, analyze the weather data you receive.
-    3. Based on the forecast, generate the following:
-       a. A list of 2-3 suitable farming activities for the day (e.g., "Soil preparation", "Indoor planting", "Equipment maintenance").
-       b. A list of 1-2 crops that would be ideal to harvest under these weather conditions. If conditions are poor for harvesting (e.g., heavy rain), return an empty list.
-       c. An array of 2-3 general farming recommendations. For each recommendation, provide a category, a short title, and a descriptive tip. Make the tips specific to the weather conditions. For example, if it's hot and dry, recommend specific irrigation techniques. If it's windy, warn about soil erosion.
+You are an expert agricultural advisor.
 
-    The user's location is: {{{location}}}
-  `;
+Weather conditions:
+- Location: ${geo.resolvedLocation}
+- Temperature: ${weather.temperature} °C
+- Humidity: ${weather.humidity} %
+- Wind Speed: ${weather.windSpeed} km/h
+- Description: ${weather.description}
+- Chance of Rain: ${weather.precipitationChance} %
 
-  const { output } = await ai.generate({
-    model: 'googleai/gemini-2.5-flash',
-    prompt: prompt,
-    tools: [getWeatherForLocation],
-    input: input,
-    output: {
-      schema: WeatherAnalysisOutputSchema,
-    },
-  });
+Based ONLY on this data:
+1. Suggest 2–3 suitable farming activities.
+2. Suggest 1–2 crops suitable for harvesting (or return an empty list).
+3. Provide 2–3 farming recommendations.
 
-  return output!;
-});
+Return STRICT JSON in this format:
+{
+  "suitableActivities": string[],
+  "recommendedCropsForHarvest": string[],
+  "recommendations": [
+    { "category": string, "title": string, "tip": string }
+  ]
+}
+`;
+
+    const { output: advice } = await ai.generate({
+      model: 'googleai/gemini-2.5-flash',
+      prompt,
+      output: {
+        schema: z.object({
+          suitableActivities: z.array(z.string()),
+          recommendedCropsForHarvest: z.array(z.string()),
+          recommendations: z.array(
+            z.object({
+              category: z.string(),
+              title: z.string(),
+              tip: z.string(),
+            })
+          ),
+        }),
+      },
+    });
+
+    /* ---------- STEP 3: FINAL ASSEMBLY (NO NULLS) ---------- */
+    return {
+      location: geo.resolvedLocation,
+      forecast: {
+        temperature: weather.temperature,
+        humidity: weather.humidity,
+        windSpeed: weather.windSpeed,
+        description: weather.description,
+        precipitationChance: weather.precipitationChance,
+      },
+      suitableActivities: advice!.suitableActivities,
+      recommendedCropsForHarvest: advice!.recommendedCropsForHarvest,
+      recommendations: advice!.recommendations,
+    };
+  }
+);
