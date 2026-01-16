@@ -1,6 +1,32 @@
+'use client';
 import { SettingsCropRecommendation } from "@/components/features/settings-crop-recommendation";
+import { useUser } from '@/firebase';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 
 export default function CropRecommendationPage() {
+    const { user, loading } = useUser();
+    const router = useRouter();
+
+    useEffect(() => {
+        if (!loading && !user) {
+            router.push('/login?redirect=/settings/crop-recommendation');
+        }
+    }, [user, loading, router]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center min-h-[50vh]">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+        );
+    }
+
+    if (!user) {
+        return null;
+    }
+
     return (
         <div className="space-y-6">
             <div>

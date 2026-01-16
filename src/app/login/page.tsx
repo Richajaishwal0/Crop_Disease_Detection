@@ -24,7 +24,7 @@ import {
   signInWithPopup,
 } from 'firebase/auth';
 import { useToast } from '@/hooks/use-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Loader2, Mail, KeyRound, Eye, EyeOff, UserCheck, Tractor } from 'lucide-react';
 import Link from 'next/link';
@@ -49,6 +49,8 @@ export default function LoginPage() {
   const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/dashboard';
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -121,7 +123,7 @@ export default function LoginPage() {
       } else {
         // Farmer login with Firebase
         await signInWithEmailAndPassword(auth, values.email, values.password);
-        router.push('/dashboard');
+        router.push(redirectUrl);
       }
     } catch (error: any) {
       console.error(error);
@@ -191,36 +193,17 @@ export default function LoginPage() {
           isVerified: false,
           region: '',
         };
-
-        setDoc(userRef, newUserDoc, { merge: true })
-          .then(() => {
-            router.push('/profile');
-            toast({
-              title: 'Welcome!',
-              description:
-                'Please complete your profile by setting a unique username.',
-            });
-          })
-          .catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-              path: userRef.path,
-              operation: 'create',
-              requestResourceData: newUserDoc,
-            } satisfies SecurityRuleContext);
-            errorEmitter.emit('permission-error', permissionError);
-          })
-          .finally(() => setIsGoogleLoading(false));
-      } else {
-        router.push('/');
-        setIsGoogleLoading(false);
+        await setDoc(userRef, newUserDoc, { merge: true });
       }
+      router.push(redirectUrl);
     } catch (error: any) {
-      console.error(error);
+      console.error('Google Sign-In Error:', error);
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
-        description: error.message || 'An unknown error occurred.',
+        title: 'Google Login Failed',
+        description: error.message || 'An error occurred.',
       });
+    } finally {
       setIsGoogleLoading(false);
     }
   };
