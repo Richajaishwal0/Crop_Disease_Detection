@@ -47,6 +47,7 @@ next-env.d.ts
 # firebase
 firebase-debug.log
 firestore-debug.log
+src/firebase/config.ts
 
 # IDE
 .vscode/
