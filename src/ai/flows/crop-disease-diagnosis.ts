@@ -28,8 +28,14 @@ const DiagnoseCropDiseaseOutputSchema = z.object({
     .number()
     .describe('The confidence level of the diagnosis (0-1).'),
   affectedSeverity: z.string().describe('The severity of the disease.'),
+  cause: z.string().describe('The primary cause of the disease (fungal, bacterial, viral, etc.).'),
+  weatherConditions: z.string().describe('Weather conditions that favor this disease.'),
+  symptoms: z.string().describe('Detailed symptoms of the disease.'),
   immediateSteps: z.string().describe('The immediate steps to take.'),
   followUpSteps: z.string().describe('The follow-up steps to take.'),
+  organicTreatment: z.string().describe('Organic treatment methods.'),
+  chemicalTreatment: z.string().describe('Chemical treatment options including pesticides and fungicides.'),
+  preventiveMeasures: z.string().describe('Preventive measures to avoid future occurrences.'),
   communityPostsLink: z
     .string()
     .describe('A link to community posts for the same disease.'),
@@ -69,11 +75,21 @@ const prompt = ai.definePrompt({
   name: 'diagnoseCropDiseasePrompt',
   input: {schema: DiagnoseCropDiseaseInputSchema},
   output: {schema: DiagnoseCropDiseaseOutputSchema},
-  prompt: `You are an expert in diagnosing crop diseases based on images.
-  Given a photo of a crop, provide a diagnosis of potential diseases, along with recommended steps and a link to relevant community discussions.
+  prompt: `You are an expert agricultural pathologist specializing in crop disease diagnosis.
+  Given a photo of a crop, provide a comprehensive diagnosis including:
+  - Disease identification
+  - Cause (fungal, bacterial, viral, nutritional deficiency, etc.)
+  - Weather conditions that favor this disease
+  - Detailed symptoms
+  - Immediate treatment steps
+  - Follow-up care instructions
+  - Organic treatment methods (natural remedies, bio-pesticides)
+  - Chemical treatment options (specific pesticides, fungicides with names)
+  - Preventive measures for future protection
 
   Photo: {{media url=photoDataUri}}
 
+  Provide detailed, actionable information that farmers can use immediately.
   Respond in JSON format.
   `,
 });

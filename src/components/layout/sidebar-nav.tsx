@@ -31,7 +31,8 @@ import {
   UserPlus,
   Users,
   Settings,
-  Bell
+  Bell,
+  GraduationCap
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -63,6 +64,13 @@ const platformNav = [
     icon: Users,
     disabled: false,
     requiresAuth: true,
+  },
+  {
+    href: '/experts',
+    label: 'Experts',
+    icon: GraduationCap,
+    disabled: false,
+    requiresAuth: false,
   },
   {
     href: '/messages',

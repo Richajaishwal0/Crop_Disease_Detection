@@ -25,7 +25,7 @@ import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection } from 'firebase/firestore';
 
 const formSchema = z.object({
-  communityId: z.string().min(1, 'Please select a community.'),
+  communityId: z.string().optional(),
   title: z
     .string()
     .min(5, 'Title must be at least 5 characters long.')
@@ -127,7 +127,11 @@ export function CreatePostForm({ onPostCreated, communityId }: CreatePostFormPro
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
     try {
-      await createPost(values);
+      const postData = {
+        ...values,
+        communityId: values.communityId || 'general',
+      };
+      await createPost(postData);
       toast({
         title: 'Post created!',
         description: 'Your post is now live for the community to see.',
@@ -158,14 +162,15 @@ export function CreatePostForm({ onPostCreated, communityId }: CreatePostFormPro
             name="communityId"
             render={({ field }) => (
                 <FormItem>
-                    <FormLabel>Community</FormLabel>
+                    <FormLabel>Community (Optional)</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={communitiesLoading || !!communityId}>
                         <FormControl>
                             <SelectTrigger>
-                                <SelectValue placeholder="Select a community to post in..." />
+                                <SelectValue placeholder="General (default)" />
                             </SelectTrigger>
                         </FormControl>
                         <SelectContent>
+                            <SelectItem value="general">General</SelectItem>
                             {communities?.map(community => (
                                 <SelectItem key={community.id} value={community.id}>
                                     c/{community.id}

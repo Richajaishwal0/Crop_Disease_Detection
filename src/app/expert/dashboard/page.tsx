@@ -14,6 +14,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   CheckCircle, 
   XCircle, 
@@ -28,7 +35,8 @@ import {
   Phone,
   MapPin,
   Edit,
-  Bell
+  Bell,
+  Download
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +44,7 @@ import { getPendingDiagnoses, updateDiagnosisStatus, getNotifications, clearAllE
 import { SubmissionMessaging } from '@/components/messaging/submission-messaging';
 import { ExpertMessages } from '@/components/messaging/expert-messages';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
+import { generateDiagnosisReport } from '@/lib/pdf-generator';
 
 export default function ExpertDashboard() {
   const [expert, setExpert] = useState<any>(null);
@@ -169,6 +178,19 @@ export default function ExpertDashboard() {
       description: 'You have been successfully logged out.',
     });
     router.push('/login');
+  };
+
+  const handleDownloadReport = (diagnosis: any) => {
+    const pdf = generateDiagnosisReport(
+      diagnosis.diagnosis,
+      diagnosis.farmerName,
+      diagnosis.imageData
+    );
+    pdf.save(`diagnosis-${diagnosis.diagnosis.diseaseName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast({
+      title: 'Report Downloaded',
+      description: 'PDF report has been downloaded successfully.',
+    });
   };
 
   if (!expert) {
@@ -425,6 +447,14 @@ export default function ExpertDashboard() {
                               </p>
                             </div>
                             <div className="flex gap-3 pt-2">
+                              <Button 
+                                size="sm" 
+                                variant="outline"
+                                onClick={() => handleDownloadReport(diagnosis)}
+                              >
+                                <Download className="h-4 w-4 mr-2" />
+                                Download PDF
+                              </Button>
                               {diagnosis.status === 'pending' ? (
                                 <>
                                   <Button 

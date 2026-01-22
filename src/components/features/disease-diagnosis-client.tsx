@@ -2,10 +2,12 @@
 
 import { useState, useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/firebase';
 import {
@@ -27,6 +29,7 @@ export function DiseaseDiagnosisClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmittingForReview, setIsSubmittingForReview] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [pdfLanguage, setPdfLanguage] = useState('en');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { user } = useUser();
@@ -217,9 +220,9 @@ export function DiseaseDiagnosisClient() {
               </div>
               <div className="grid gap-3">
                 <Button asChild>
-                  <a href={result.communityPostsLink} target="_blank" rel="noopener noreferrer">
+                  <Link href="/community">
                     View Community Posts
-                  </a>
+                  </Link>
                 </Button>
                 <Button 
                   variant="outline" 

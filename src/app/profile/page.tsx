@@ -1,13 +1,11 @@
 'use client';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useFirestore, useUser, useCollection } from '@/firebase';
 import {
   collection,
   query,
   where,
-  limit,
-  orderBy,
-  Timestamp,
+  documentId,
 } from 'firebase/firestore';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -17,26 +15,25 @@ import {
   CardHeader,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Edit, Loader2 } from 'lucide-react';
-import { PostCard } from '@/components/features/post-card';
+import { Calendar, Edit, Loader2, UserPlus, UserMinus } from 'lucide-react';
 import { useAuthActions } from '@/hooks/use-auth-actions';
 import Link from 'next/link';
 import { formatUsername, formatTimestamp } from '@/lib/utils';
 import type { UserProfile } from '@/types';
-import type { Post } from '@/lib/actions/community';
-import Image from 'next/image';
+import { followUser, unfollowUser } from '@/app/actions/follow';
+import { useToast } from '@/hooks/use-toast';
 
 export default function ProfilePage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
-  const { voteOnPost } = useAuthActions();
+  const { toast } = useToast();
+  const [actionLoading, setActionLoading] = useState(false);
 
   const userProfileQuery = useMemo(() => {
     if (!firestore || !user) return null;
     return query(
       collection(firestore, 'users'),
-      where('uid', '==', user.uid),
-      limit(1)
+      where('uid', '==', user.uid)
     );
   }, [firestore, user]);
 
@@ -44,18 +41,36 @@ export default function ProfilePage() {
     useCollection<UserProfile>(userProfileQuery);
   const userProfile = userProfiles?.[0];
 
-  const postsQuery = useMemo(() => {
-    if (!firestore || !userProfile) return null;
+  const followersQuery = useMemo(() => {
+    if (!firestore || !userProfile?.followers?.length) return null;
     return query(
-      collection(firestore, 'posts'),
-      where('uid', '==', userProfile.uid),
-      orderBy('createdAt', 'desc')
+      collection(firestore, 'users'),
+      where(documentId(), 'in', userProfile.followers.slice(0, 10))
     );
-  }, [firestore, userProfile]);
+  }, [firestore, userProfile?.followers]);
 
-  const { data: posts, loading: postsLoading } = useCollection<
-    Post & { createdAt: Timestamp }
-  >(postsQuery);
+  const followingQuery = useMemo(() => {
+    if (!firestore || !userProfile?.following?.length) return null;
+    return query(
+      collection(firestore, 'users'),
+      where(documentId(), 'in', userProfile.following.slice(0, 10))
+    );
+  }, [firestore, userProfile?.following]);
+
+  const { data: followers } = useCollection<UserProfile>(followersQuery);
+  const { data: following } = useCollection<UserProfile>(followingQuery);
+
+  const handleUnfollow = async (targetUserId: string) => {
+    if (!user) return;
+    setActionLoading(true);
+    const result = await unfollowUser(user.uid, targetUserId);
+    if (result.success) {
+      toast({ title: 'Unfollowed successfully' });
+    } else {
+      toast({ variant: 'destructive', title: 'Failed to unfollow' });
+    }
+    setActionLoading(false);
+  };
 
   const getInitials = (name: string) => {
     if (!name) return '';
@@ -113,6 +128,16 @@ export default function ProfilePage() {
                 <p className="text-base text-muted-foreground">
                     {formatUsername(userProfile.username, userProfile.role)}
                 </p>
+                <div className="flex items-center justify-center gap-6 pt-4">
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">{userProfile.followers?.length || 0}</p>
+                    <p className="text-sm text-muted-foreground">Followers</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold">{userProfile.following?.length || 0}</p>
+                    <p className="text-sm text-muted-foreground">Following</p>
+                  </div>
+                </div>
                 <div className="flex items-center justify-center pt-2 text-sm text-muted-foreground">
                     <Calendar className="mr-2 h-4 w-4" />
                     Joined on {formatTimestamp(userProfile.createdAt, { format: 'full', addSuffix: false })}
@@ -121,42 +146,75 @@ export default function ProfilePage() {
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="posts">
-        <TabsList>
-          <TabsTrigger value="posts">Posts</TabsTrigger>
-          <TabsTrigger value="followers" disabled>Followers</TabsTrigger>
-          <TabsTrigger value="following" disabled>Following</TabsTrigger>
+      <Tabs defaultValue="followers">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="followers">Followers ({userProfile.followers?.length || 0})</TabsTrigger>
+          <TabsTrigger value="following">Following ({userProfile.following?.length || 0})</TabsTrigger>
         </TabsList>
-        <TabsContent value="posts" className="mt-6">
-            {postsLoading && (
-                 <div className="flex items-center justify-center h-48">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                </div>
-            )}
-            {!postsLoading && posts && posts.length > 0 ? (
-                <div className="space-y-6">
-                    {posts.map((post) => (
-                        <PostCard
-                        key={post.id}
-                        post={{...post, authorRole: userProfile.role}}
-                        voteAction={(vote) => voteOnPost(post.id, vote)}
-                        />
-                    ))}
-                </div>
-            ) : (
-                !postsLoading && (
-                    <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
-                        <p className="font-semibold text-lg">No posts yet.</p>
-                        <p className="mt-1">When you post, they'll show up here.</p>
+        
+        <TabsContent value="followers" className="mt-6">
+          {followers && followers.length > 0 ? (
+            <div className="grid gap-4">
+              {followers.map((follower) => (
+                <Card key={follower.uid}>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={follower.photoURL ?? undefined} />
+                        <AvatarFallback>{getInitials(follower.displayName)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">{follower.displayName}</p>
+                        <p className="text-sm text-muted-foreground">{formatUsername(follower.username, follower.role)}</p>
+                      </div>
                     </div>
-                )
-            )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+              <p className="font-semibold text-lg">No followers yet</p>
+              <p className="mt-1">When people follow you, they'll appear here.</p>
+            </div>
+          )}
         </TabsContent>
-        <TabsContent value="followers">
-            <p className="text-muted-foreground text-center py-12">This feature is coming soon.</p>
-        </TabsContent>
-        <TabsContent value="following">
-            <p className="text-muted-foreground text-center py-12">This feature is coming soon.</p>
+        
+        <TabsContent value="following" className="mt-6">
+          {following && following.length > 0 ? (
+            <div className="grid gap-4">
+              {following.map((followedUser) => (
+                <Card key={followedUser.uid}>
+                  <CardContent className="flex items-center justify-between p-4">
+                    <div className="flex items-center gap-3">
+                      <Avatar>
+                        <AvatarImage src={followedUser.photoURL ?? undefined} />
+                        <AvatarFallback>{getInitials(followedUser.displayName)}</AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <p className="font-semibold">{followedUser.displayName}</p>
+                        <p className="text-sm text-muted-foreground">{formatUsername(followedUser.username, followedUser.role)}</p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleUnfollow(followedUser.uid)}
+                      disabled={actionLoading}
+                    >
+                      <UserMinus className="h-4 w-4 mr-2" />
+                      Unfollow
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-lg">
+              <p className="font-semibold text-lg">Not following anyone yet</p>
+              <p className="mt-1">Discover and follow other farmers in the community.</p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>
