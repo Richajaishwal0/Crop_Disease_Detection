@@ -17,7 +17,7 @@ import { Bell, LogOut, Search, User as UserIcon, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { signOut } from 'firebase/auth';
 import { ThemeToggle } from './theme-toggle';
-import LanguageSwitcher from './LanguageSwitcher';
+import GoogleTranslateWidget from './GoogleTranslateWidget';
 import { usePathname, useRouter } from 'next/navigation';
 import { Input } from '../ui/input';
 import { useSearch } from '@/context/search-provider';
@@ -86,7 +86,7 @@ export function Header() {
 
       <div className="flex items-center gap-2">
         <ThemeToggle />
-        <LanguageSwitcher />
+        <GoogleTranslateWidget />
         {user && (
           <Button variant="ghost" size="icon">
             <Bell className="h-5 w-5" />

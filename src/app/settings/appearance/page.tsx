@@ -20,26 +20,24 @@ import {
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { Moon, Sun } from 'lucide-react';
+import { useLanguage } from '@/context/language-provider';
 
 export default function AppearanceSettingsPage() {
   const { setTheme, theme } = useTheme();
+  const { t } = useLanguage();
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Appearance</h3>
-        <p className="text-sm text-muted-foreground">
-          Customize the appearance of the app. Automatically switch between day and night themes.
-        </p>
+        <h3 className="text-lg font-medium">{t.appearanceHeading}</h3>
+        <p className="text-sm text-muted-foreground">{t.appearanceSubtitle}</p>
       </div>
       <Separator />
 
       <Card>
         <CardHeader>
-          <CardTitle>Theme</CardTitle>
-          <CardDescription>
-            Select the theme for the application.
-          </CardDescription>
+          <CardTitle>{t.theme}</CardTitle>
+          <CardDescription>{t.selectTheme}</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -50,7 +48,7 @@ export default function AppearanceSettingsPage() {
               onClick={() => setTheme('light')}
             >
               <Sun className="h-6 w-6 mx-auto mb-2" />
-              <p className="text-center font-medium">Light</p>
+              <p className="text-center font-medium">{t.light}</p>
             </div>
             <div
               className={`rounded-lg border-2 p-4 cursor-pointer ${
@@ -59,7 +57,7 @@ export default function AppearanceSettingsPage() {
               onClick={() => setTheme('dark')}
             >
               <Moon className="h-6 w-6 mx-auto mb-2" />
-              <p className="text-center font-medium">Dark</p>
+              <p className="text-center font-medium">{t.dark}</p>
             </div>
             <div
               className={`rounded-lg border-2 p-4 cursor-pointer ${
@@ -71,7 +69,7 @@ export default function AppearanceSettingsPage() {
                 <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/>
                 <path d="M12 2v20"/>
               </svg>
-              <p className="text-center font-medium">System</p>
+              <p className="text-center font-medium">{t.system}</p>
             </div>
           </div>
         </CardContent>

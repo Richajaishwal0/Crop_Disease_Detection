@@ -8,6 +8,7 @@ import { ThemeProvider } from '@/components/layout/theme-provider';
 import { UserProfileDialogProvider } from '@/context/user-profile-dialog-provider';
 import { CartProvider } from '@/context/cart-provider';
 import { SearchProvider } from '@/context/search-provider';
+import { LanguageProvider } from '@/context/language-provider';
 
 export const metadata: Metadata = {
   title: 'Farmingo: Grow Together',
@@ -42,13 +43,15 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <FirebaseClientProvider>
-            <UserProfileDialogProvider>
-              <CartProvider>
-                <SearchProvider>
-                  <AppLayout>{children}</AppLayout>
-                </SearchProvider>
-              </CartProvider>
-            </UserProfileDialogProvider>
+            <LanguageProvider>
+              <UserProfileDialogProvider>
+                <CartProvider>
+                  <SearchProvider>
+                    <AppLayout>{children}</AppLayout>
+                  </SearchProvider>
+                </CartProvider>
+              </UserProfileDialogProvider>
+            </LanguageProvider>
           </FirebaseClientProvider>
           <Toaster />
         </ThemeProvider>
