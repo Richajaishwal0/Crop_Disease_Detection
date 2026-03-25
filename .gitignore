@@ -11,6 +11,7 @@ node_modules/
 firebase-debug.log
 firestore-debug.log
 src/firebase/config.ts
+service-account.json
 
 # Genkit
 .genkit/
