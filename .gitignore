@@ -12,8 +12,11 @@ firebase-debug.log
 firestore-debug.log
 service-account.json
 
-# Genkit
-.genkit/
+.genkit/*
+.env*
+service-account.json
 
-# OS
-.DS_Store
+# firebase
+firebase-debug.log
+firestore-debug.log
+src/firebase/config.ts

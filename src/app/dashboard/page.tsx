@@ -27,60 +27,28 @@ import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMemo } from 'react';
 import { useSearch } from '@/context/search-provider';
-
-const allAiTools = [
-  {
-    title: 'Crop Price Prediction',
-    description: 'Get AI-powered price forecasts for your crops.',
-    href: '/price-prediction',
-    icon: <TrendingUp className="w-8 h-8 text-primary" />,
-    disabled: false,
-  },
-  {
-    title: 'Crop Disease Diagnosis',
-    description: 'Upload a photo to diagnose crop diseases instantly.',
-    href: '/disease-diagnosis',
-    icon: <Bug className="w-8 h-8 text-primary" />,
-    disabled: false,
-  },
-  {
-    title: 'Weather Prediction & Advice',
-    description: 'Get forecasts and actionable farming tips for your location.',
-    href: '/weather-prediction',
-    icon: <CloudSun className="w-8 h-8 text-primary" />,
-    disabled: false,
-  },
-];
-
-const allPlatformFeatures = [
-  {
-    title: 'Marketplace',
-    description: 'Buy and sell agricultural products directly.',
-    href: '/marketplace',
-    icon: <Store className="w-8 h-8 text-primary" />,
-    disabled: false,
-  },
-  {
-    title: 'Community Hub',
-    description: 'Connect with fellow farmers and share knowledge.',
-    href: '/community',
-    icon: <Users className="w-8 h-8 text-primary" />,
-    disabled: false,
-  },
-];
+import { useLanguage } from '@/context/language-provider';
 
 export default function DashboardPage() {
   const { user, loading } = useUser();
   const { searchTerm } = useSearch();
+  const { t } = useLanguage();
+
+  const allAiTools = [
+    { title: t.cropPricePredictionTitle, description: t.cropPricePredictionDesc, href: '/price-prediction', icon: <TrendingUp className="w-8 h-8 text-primary" />, disabled: false },
+    { title: t.cropDiseaseDiagnosisTitle, description: t.cropDiseaseDiagnosisDesc, href: '/disease-diagnosis', icon: <Bug className="w-8 h-8 text-primary" />, disabled: false },
+    { title: t.weatherPredictionTitle, description: t.weatherPredictionDesc, href: '/weather-prediction', icon: <CloudSun className="w-8 h-8 text-primary" />, disabled: false },
+  ];
+
+  const allPlatformFeatures = [
+    { title: t.marketplaceTitle, description: t.marketplaceDesc, href: '/marketplace', icon: <Store className="w-8 h-8 text-primary" />, disabled: false },
+    { title: t.communityHubTitle, description: t.communityHubDesc, href: '/community', icon: <Users className="w-8 h-8 text-primary" />, disabled: false },
+  ];
 
   const welcomeMessage = () => {
-    if (loading) {
-      return <Skeleton className="h-10 w-1/2" />;
-    }
-    if (user?.displayName) {
-      return `Welcome, ${user.displayName}!`;
-    }
-    return 'Welcome, Farmer!';
+    if (loading) return <Skeleton className="h-10 w-1/2" />;
+    if (user?.displayName) return `${t.welcomeFarmer.replace('Farmer', user.displayName).replace('किसान', user.displayName).replace('शेतकरी', user.displayName)}`;
+    return t.welcomeFarmer;
   };
 
   const filteredAiTools = useMemo(() => {
@@ -90,7 +58,8 @@ export default function DashboardPage() {
         tool.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         tool.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, t]);
 
   const filteredPlatformFeatures = useMemo(() => {
     if (!searchTerm) return allPlatformFeatures;
@@ -99,7 +68,8 @@ export default function DashboardPage() {
         feature.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         feature.description.toLowerCase().includes(searchTerm.toLowerCase())
     );
-  }, [searchTerm]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, t]);
 
   return (
     <div className="flex flex-col gap-8">
@@ -108,8 +78,7 @@ export default function DashboardPage() {
           {welcomeMessage()}
         </h1>
         <p className="text-muted-foreground mt-2">
-          Your all-in-one solution for modern farming. What would you like to do
-          today?
+          {t.dashboardSubtitle}
         </p>
       </div>
 
@@ -117,7 +86,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <Bot className="w-8 h-8 text-accent" />
           <h2 className="font-headline text-2xl font-bold tracking-tight">
-            AI-Powered Insights
+            {t.aiPoweredInsights}
           </h2>
         </div>
         <Separator />
@@ -149,7 +118,7 @@ export default function DashboardPage() {
                     disabled={feature.disabled}
                   >
                     <Link href={feature.href}>
-                      {feature.disabled ? 'Coming Soon' : 'Get Started'}{' '}
+                      {feature.disabled ? t.comingSoon : t.getStarted}{' '}
                       {!feature.disabled && (
                         <ArrowRight className="ml-2 h-4 w-4" />
                       )}
@@ -160,7 +129,7 @@ export default function DashboardPage() {
             ))}}}
           </div>
         ) : (
-          <p className="text-muted-foreground text-center py-4">No matching AI tools found.</p>
+          <p className="text-muted-foreground text-center py-4">{t.noAiToolsFound}</p>
         )}
       </section>
 
@@ -168,7 +137,7 @@ export default function DashboardPage() {
         <div className="flex items-center gap-4">
           <Users className="w-8 h-8 text-accent" />
           <h2 className="font-headline text-2xl font-bold tracking-tight">
-            Community & Commerce
+            {t.communityCommerce}
           </h2>
         </div>
         <Separator />
@@ -200,7 +169,7 @@ export default function DashboardPage() {
                     disabled={feature.disabled}
                     >
                     <Link href={feature.href}>
-                        {feature.disabled ? 'Coming Soon' : `Go to ${feature.title}`}
+                        {feature.disabled ? t.comingSoon : `${t.goTo} ${feature.title}`}
                         {!feature.disabled && (
                         <ArrowRight className="ml-2 h-4 w-4" />
                         )}
@@ -211,7 +180,7 @@ export default function DashboardPage() {
             ))}
             </div>
          ) : (
-            <p className="text-muted-foreground text-center py-4">No matching platform features found.</p>
+            <p className="text-muted-foreground text-center py-4">{t.noPlatformFeaturesFound}</p>
          )}
       </section>
     </div>

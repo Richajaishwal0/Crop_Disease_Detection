@@ -11,9 +11,11 @@ import {
 import { Checkbox } from '@/components/ui/checkbox';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/context/language-provider';
 
 export default function NotificationsSettingsPage() {
     const { toast } = useToast();
+    const { t } = useLanguage();
 
     const handleSaveChanges = () => {
         toast({
@@ -25,19 +27,15 @@ export default function NotificationsSettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-medium">Notifications</h3>
-        <p className="text-sm text-muted-foreground">
-          Configure how you receive notifications.
-        </p>
+        <h3 className="text-lg font-medium">{t.notificationsHeading}</h3>
+        <p className="text-sm text-muted-foreground">{t.notificationsSubtitle}</p>
       </div>
       <Separator />
 
       <Card>
         <CardHeader>
-          <CardTitle>Email Notifications</CardTitle>
-          <CardDescription>
-            Choose which email notifications you want to receive.
-          </CardDescription>
+          <CardTitle>{t.emailNotifications}</CardTitle>
+          <CardDescription>{t.emailNotificationsDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-2">
@@ -46,10 +44,10 @@ export default function NotificationsSettingsPage() {
               htmlFor="mentions"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Mentions
+              {t.mentions}
             </label>
             <p className="text-sm text-muted-foreground ml-auto">
-              When someone mentions you in a post or comment.
+              {t.mentionsDesc}
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -58,10 +56,10 @@ export default function NotificationsSettingsPage() {
               htmlFor="new-messages"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              New Messages
+              {t.newMessages}
             </label>
              <p className="text-sm text-muted-foreground ml-auto">
-              When you receive a new direct message.
+              {t.newMessagesDesc}
             </p>
           </div>
           <div className="flex items-center space-x-2">
@@ -70,10 +68,10 @@ export default function NotificationsSettingsPage() {
               htmlFor="product-updates"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Product Updates
+              {t.productUpdates}
             </label>
              <p className="text-sm text-muted-foreground ml-auto">
-              News, updates, and marketing from Farmingo.
+              {t.productUpdatesDesc}
             </p>
           </div>
         </CardContent>
@@ -81,10 +79,8 @@ export default function NotificationsSettingsPage() {
       
        <Card>
         <CardHeader>
-          <CardTitle>Push Notifications</CardTitle>
-          <CardDescription>
-            Choose which push notifications you want to receive on your devices.
-          </CardDescription>
+          <CardTitle>{t.pushNotifications}</CardTitle>
+          <CardDescription>{t.pushNotificationsDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center space-x-2">
@@ -93,7 +89,7 @@ export default function NotificationsSettingsPage() {
               htmlFor="push-everything"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Everything
+              {t.everything}
             </label>
           </div>
           <div className="flex items-center space-x-2">
@@ -102,7 +98,7 @@ export default function NotificationsSettingsPage() {
               htmlFor="push-email"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Same as email
+              {t.sameAsEmail}
             </label>
           </div>
            <div className="flex items-center space-x-2">
@@ -111,12 +107,12 @@ export default function NotificationsSettingsPage() {
               htmlFor="push-nothing"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              No push notifications
+              {t.noPushNotifications}
             </label>
           </div>
         </CardContent>
       </Card>
-      <Button onClick={handleSaveChanges}>Save Changes</Button>
+      <Button onClick={handleSaveChanges}>{t.saveChanges}</Button>
     </div>
   );
 }

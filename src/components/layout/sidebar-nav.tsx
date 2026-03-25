@@ -37,54 +37,10 @@ import {
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState, useMemo, useEffect } from 'react';
-import { collection, query, where } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
-import { getNotifications } from '@/app/actions/expert-review';
+import { useState } from 'react';
+import { useLanguage } from '@/context/language-provider';
 
-const mainNav = [{ href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard }];
 
-const aiToolsNav = [
-  { href: '/price-prediction', label: 'Price Prediction', icon: TrendingUp },
-  { href: '/disease-diagnosis', label: 'Disease Diagnosis', icon: Bug },
-  { href: '/weather-prediction', label: 'Weather Prediction', icon: CloudSun },
-];
-
-const platformNav = [
-  {
-    href: '/marketplace',
-    label: 'Marketplace',
-    icon: ShoppingCart,
-    disabled: false,
-    requiresAuth: true,
-  },
-  {
-    href: '/community',
-    label: 'Community',
-    icon: Users,
-    disabled: false,
-    requiresAuth: true,
-  },
-  {
-    href: '/experts',
-    label: 'Experts',
-    icon: GraduationCap,
-    disabled: false,
-    requiresAuth: false,
-  },
-  {
-    href: '/messages',
-    label: 'Messages',
-    icon: MessageSquare,
-    disabled: false,
-    requiresAuth: true,
-  },
-];
-
-const userNav = [
-  { href: '/profile', label: 'Profile', icon: User, disabled: false, requiresAuth: true },
-  { href: '/settings', label: 'Settings', icon: Settings, disabled: false, requiresAuth: true },
-];
 
 type NavCategoryProps = {
   title: string;
@@ -214,6 +170,23 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { user } = useUser();
   const auth = useAuth();
+  const { t } = useLanguage();
+
+  const mainNav = [{ href: '/dashboard', label: t.dashboard, icon: LayoutDashboard }];
+  const aiToolsNav = [
+    { href: '/price-prediction', label: t.pricePrediction, icon: TrendingUp },
+    { href: '/disease-diagnosis', label: t.diseaseDiagnosis, icon: Bug },
+    { href: '/weather-prediction', label: t.weatherPrediction, icon: CloudSun },
+  ];
+  const platformNav = [
+    { href: '/marketplace', label: t.marketplace, icon: ShoppingCart, disabled: false, requiresAuth: true },
+    { href: '/community', label: t.community, icon: Users, disabled: false, requiresAuth: true },
+    { href: '/messages', label: t.messages, icon: MessageSquare, disabled: false, requiresAuth: true },
+  ];
+  const userNav = [
+    { href: '/profile', label: t.profile, icon: User, disabled: false, requiresAuth: true },
+    { href: '/settings', label: t.settings, icon: Settings, disabled: false, requiresAuth: true },
+  ];
 
   const handleLogout = async () => {
     if (auth) {
@@ -252,35 +225,35 @@ export function SidebarNav() {
           ))}
         </SidebarMenu>
 
-        <NavCategory title="AI Tools" items={aiToolsNav} user={user} pathname={pathname} />
-        <NavCategory title="Platform" items={platformNav} user={user} pathname={pathname} />
-        <NavCategory title="Account" items={userNav} user={user} pathname={pathname} />
+        <NavCategory title={t.aiTools} items={aiToolsNav} user={user} pathname={pathname} />
+        <NavCategory title={t.platform} items={platformNav} user={user} pathname={pathname} />
+        <NavCategory title={t.account} items={userNav} user={user} pathname={pathname} />
 
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
           {user ? (
             <SidebarMenuItem>
-              <SidebarMenuButton onClick={handleLogout} tooltip="Logout" className="text-destructive hover:text-destructive-foreground hover:bg-destructive/10">
+              <SidebarMenuButton onClick={handleLogout} tooltip={t.logout}>
                 <LogOut />
-                <span>Logout</span>
+                <span>{t.logout}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           ) : (
             <>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === '/login'} tooltip="Login">
+                <SidebarMenuButton asChild isActive={pathname === '/login'} tooltip={t.login}>
                   <Link href="/login">
                     <LogIn />
-                    <span>Login</span>
+                    <span>{t.login}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
               <SidebarMenuItem>
-                <SidebarMenuButton asChild isActive={pathname === '/signup'} tooltip="Sign up">
+                <SidebarMenuButton asChild isActive={pathname === '/signup'} tooltip={t.signup}>
                   <Link href="/signup">
                     <UserPlus />
-                    <span>Sign up</span>
+                    <span>{t.signup}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

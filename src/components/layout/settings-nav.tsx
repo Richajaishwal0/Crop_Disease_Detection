@@ -4,48 +4,23 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { buttonVariants } from '@/components/ui/button';
-
-const sidebarNavItems = [
-  {
-    title: 'Profile',
-    href: '/settings/profile',
-  },
-  {
-    title: 'Appearance',
-    href: '/settings/appearance',
-  },
-  {
-    title: 'Notifications',
-    href: '/settings/notifications',
-  },
-  {
-    title: 'Translation',
-    href: '/settings/translation',
-  },
-  {
-    title: 'My Orders',
-    href: '/settings/orders',
-  },
-  {
-    title: 'Crop Price Prediction',
-    href: '/settings/price-prediction',
-  },
-  {
-    title: 'Disease Prediction',
-    href: '/settings/disease-prediction',
-  },
-  {
-    title: 'Crop Recommendation',
-    href: '/settings/crop-recommendation',
-  },
-  {
-    title: 'API Testing',
-    href: '/settings/api-testing',
-  },
-];
+import { useLanguage } from '@/context/language-provider';
 
 export function SettingsNav() {
   const pathname = usePathname();
+  const { t } = useLanguage();
+
+  const sidebarNavItems = [
+    { title: t.settingsProfile, href: '/settings/profile' },
+    { title: t.settingsAppearance, href: '/settings/appearance' },
+    { title: t.settingsNotifications, href: '/settings/notifications' },
+    { title: t.settingsTranslation, href: '/settings/translation' },
+    { title: t.settingsOrders, href: '/settings/orders' },
+    { title: t.pricePrediction, href: '/settings/price-prediction' },
+    { title: t.diseaseDiagnosis, href: '/settings/disease-prediction' },
+    { title: 'Crop Recommendation', href: '/settings/crop-recommendation' },
+    { title: 'API Testing', href: '/settings/api-testing' },
+  ];
 
   return (
     <nav className="flex space-x-2 lg:flex-col lg:space-x-0 lg:space-y-1">
