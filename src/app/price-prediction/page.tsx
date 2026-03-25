@@ -1,42 +1,16 @@
 'use client';
 import { PricePredictionClient } from '@/components/features/price-prediction-client';
-import { useUser } from '@/firebase';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useLanguage } from '@/context/language-provider';
 
 export default function PricePredictionPage() {
-  const { user, loading } = useUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login?redirect=/price-prediction');
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
+  const { t } = useLanguage();
   return (
     <div className="space-y-8">
       <div className="space-y-2">
         <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">
-          Crop Price Prediction
+          {t.pricePrediction}
         </h1>
-        <p className="text-muted-foreground">
-          Enter your crop details to get an AI-powered price prediction and
-          listing recommendation.
-        </p>
+        <p className="text-muted-foreground">{t.pricePredictionSubtitle}</p>
       </div>
       <PricePredictionClient />
     </div>

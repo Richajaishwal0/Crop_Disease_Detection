@@ -27,6 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { updateUserProfile, sendPasswordReset } from '@/lib/actions/profile';
 import { Separator } from '@/components/ui/separator';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { useLanguage } from '@/context/language-provider';
 
 const profileSchema = z.object({
   displayName: z.string().min(1, 'Display name is required.'),
@@ -46,6 +47,7 @@ export default function ProfileSettingsPage() {
   const firestore = useFirestore();
   const auth = useAuth();
   const { toast } = useToast();
+  const { t } = useLanguage();
   const [isLoading, setIsLoading] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
   const [initialUsername, setInitialUsername] = useState('');
@@ -148,18 +150,14 @@ export default function ProfileSettingsPage() {
   };
 
 
-  if (userLoading) {
-    return <p>Loading profile...</p>;
-  }
+  if (userLoading) return <p>{t.loadingProfile}</p>;
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <div>
-          <h3 className="text-lg font-medium">Profile</h3>
-          <p className="text-sm text-muted-foreground">
-            This is how others will see you on the site.
-          </p>
+          <h3 className="text-lg font-medium">{t.profileHeading}</h3>
+          <p className="text-sm text-muted-foreground">{t.profileSubtitle}</p>
         </div>
         <Separator />
         <Card>
@@ -169,7 +167,7 @@ export default function ProfileSettingsPage() {
               name="username"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Username</FormLabel>
+                  <FormLabel>{t.username}</FormLabel>
                   <FormControl>
                     <div className="relative">
                       <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -189,7 +187,7 @@ export default function ProfileSettingsPage() {
               name="displayName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Display Name</FormLabel>
+                  <FormLabel>{t.displayName}</FormLabel>
                   <FormControl>
                     <Input placeholder="Your Name" {...field} />
                   </FormControl>
@@ -202,7 +200,7 @@ export default function ProfileSettingsPage() {
                 name="region"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Default Region</FormLabel>
+                    <FormLabel>{t.defaultRegion}</FormLabel>
                     <FormControl>
                       <div className="relative">
                         <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -226,7 +224,7 @@ export default function ProfileSettingsPage() {
                 {isLoading && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
-                Update profile
+                {t.updateProfile}
             </Button>
           </CardFooter>
         </Card>
@@ -234,16 +232,14 @@ export default function ProfileSettingsPage() {
         <Separator />
 
         <div>
-          <h3 className="text-lg font-medium">Account</h3>
-          <p className="text-sm text-muted-foreground">
-            Manage your account security and identification.
-          </p>
+          <h3 className="text-lg font-medium">{t.accountHeading}</h3>
+          <p className="text-sm text-muted-foreground">{t.accountSubtitle}</p>
         </div>
 
         <Card>
           <CardContent className='pt-6 space-y-6'>
                 <div className="space-y-2">
-                  <FormLabel>User ID</FormLabel>
+                  <FormLabel>{t.userId}</FormLabel>
                   <div className="flex items-center justify-between p-3 rounded-md bg-muted mt-2">
                       <code className="text-sm text-muted-foreground truncate">{user?.uid}</code>
                       <Button type="button" variant="ghost" size="icon" onClick={handleCopyUid}>
@@ -252,9 +248,9 @@ export default function ProfileSettingsPage() {
                   </div>
                 </div>
                 <div className="space-y-2">
-                  <FormLabel>Email Address</FormLabel>
+                  <FormLabel>{t.emailAddress}</FormLabel>
                   <p className="text-sm text-muted-foreground mt-2">
-                      Your email address is {user?.email}. This cannot be changed.
+                    {t.emailCannotChange.replace('{email}', user?.email ?? '')}
                   </p>
                 </div>
               </CardContent>
@@ -270,7 +266,7 @@ export default function ProfileSettingsPage() {
                   ) : (
                       <KeyRound className="mr-2 h-4 w-4" />
                   )}
-                  Send Password Reset Email
+                  {t.sendPasswordReset}
                 </Button>
               </CardFooter>
         </Card>

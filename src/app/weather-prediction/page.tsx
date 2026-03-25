@@ -1,42 +1,16 @@
 'use client';
 import { WeatherPredictionClient } from '@/components/features/weather-prediction-client';
-import { useUser } from '@/firebase';
-import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-import { Loader2 } from 'lucide-react';
+import { useLanguage } from '@/context/language-provider';
 
 export default function WeatherPredictionPage() {
-  const { user, loading } = useUser();
-  const router = useRouter();
-
-  useEffect(() => {
-    if (!loading && !user) {
-      router.push('/login?redirect=/weather-prediction');
-    }
-  }, [user, loading, router]);
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-[50vh]">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
+  const { t } = useLanguage();
   return (
     <div className="space-y-8">
       <div className="space-y-2">
         <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">
-          Weather Prediction & Advice
+          {t.weatherPrediction}
         </h1>
-        <p className="text-muted-foreground">
-          Get AI-powered weather forecasts and actionable farming tips for your
-          location.
-        </p>
+        <p className="text-muted-foreground">{t.weatherPredictionSubtitle}</p>
       </div>
       <WeatherPredictionClient />
     </div>
