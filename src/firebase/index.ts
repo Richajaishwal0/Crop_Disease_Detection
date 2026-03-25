@@ -1,5 +1,5 @@
 import { initializeApp, getApp, getApps, type FirebaseApp } from 'firebase/app';
-import { getAuth, type Auth, connectAuthEmulator } from 'firebase/auth';
+import { getAuth, type Auth, connectAuthEmulator, setPersistence, browserLocalPersistence } from 'firebase/auth';
 import { getFirestore, type Firestore, connectFirestoreEmulator } from 'firebase/firestore';
 import { firebaseConfig } from './config';
 
@@ -22,6 +22,7 @@ function initializeFirebase() {
   }
   
   auth = getAuth(app);
+  setPersistence(auth, browserLocalPersistence).catch(console.error);
   firestore = getFirestore(app);
 
   if (process.env.NEXT_PUBLIC_EMULATOR_HOST) {

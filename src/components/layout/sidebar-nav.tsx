@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
 import {
   Bug,
@@ -30,7 +30,9 @@ import {
   User,
   UserPlus,
   Users,
-  Settings
+  Settings,
+  Bell,
+  GraduationCap
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -55,6 +57,50 @@ type NavCategoryProps = {
 
 function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
   const [isOpen, setIsOpen] = useState(true);
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const firestore = useFirestore();
+  
+  // Load notifications for current user
+  useEffect(() => {
+    if (user) {
+      loadUserNotifications();
+    }
+  }, [user]);
+
+  const loadUserNotifications = async () => {
+    if (!user) return;
+    try {
+      const userNotifications = await getNotifications(user.uid, 'farmer');
+      setNotifications(userNotifications);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    }
+  };
+  
+  // Get unread message count
+  const conversationsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(
+      collection(firestore, 'conversations'),
+      where('participants', 'array-contains', user.uid)
+    );
+  }, [firestore, user]);
+
+  const { data: conversations } = useCollection(conversationsQuery);
+  
+  const unreadCount = useMemo(() => {
+    if (!conversations || !user) return 0;
+    return conversations.filter(conv => {
+      const lastMessageDate = conv.lastMessage?.createdAt?.toDate() || new Date(0);
+      const lastReadDate = conv.lastRead?.[user.uid]?.toDate() || new Date(0);
+      return lastMessageDate > lastReadDate && conv.lastMessage?.senderId !== user.uid;
+    }).length;
+  }, [conversations, user]);
+
+  const unreadNotifications = useMemo(() => {
+    return notifications.filter(n => !n.read).length;
+  }, [notifications]);
+  
   const filteredItems = items.filter(item => !item.requiresAuth || user);
 
   if (filteredItems.length === 0) {
@@ -85,6 +131,11 @@ function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
                 <Link href={item.href}>
                   <item.icon />
                   <span>{item.label}</span>
+                  {item.href === '/messages' && unreadCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                      {unreadCount}
+                    </span>
+                  )}
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -149,8 +200,10 @@ export function SidebarNav() {
     <>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
-          <Leaf className="w-8 h-8 text-primary" />
-          <span className="font-headline text-xl font-bold group-data-[collapsible=icon]:hidden">Farmingo</span>
+          <div className="p-1 rounded-md bg-primary/10">
+            <Leaf className="w-8 h-8 text-primary" />
+          </div>
+          <span className="font-headline text-xl font-bold group-data-[collapsible=icon]:hidden bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Farmingo</span>
         </div>
       </SidebarHeader>
       <SidebarContent className="p-2 space-y-2">

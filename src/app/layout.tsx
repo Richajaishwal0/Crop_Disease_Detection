@@ -35,7 +35,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="font-body antialiased">
+      <body className="font-body antialiased" suppressHydrationWarning>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
@@ -53,7 +53,7 @@ export default function RootLayout({
               </UserProfileDialogProvider>
             </LanguageProvider>
           </FirebaseClientProvider>
-          <Toaster />
+          <Toaster suppressHydrationWarning />
         </ThemeProvider>
       </body>
     </html>

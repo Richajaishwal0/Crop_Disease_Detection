@@ -1,12 +1,12 @@
-'use server';
+"use server";
 
 /**
  * @fileOverview Real weather analysis and farming recommendations
  * using Open-Meteo (free) + Genkit (LLM only for advice).
  */
 
-import { ai } from '@/ai/genkit';
-import { z } from 'zod';
+import { ai } from "@/ai/genkit";
+import { z } from "zod";
 
 /* =====================================================
    1️⃣ HELPERS (REAL WEATHER, NO LLM)
@@ -100,7 +100,7 @@ export type WeatherAnalysisOutput = z.infer<
 ===================================================== */
 
 export async function getWeatherAnalysis(
-  input: WeatherAnalysisInput
+  input: WeatherAnalysisInput,
 ): Promise<WeatherAnalysisOutput> {
   return getWeatherAnalysisFlow(input);
 }

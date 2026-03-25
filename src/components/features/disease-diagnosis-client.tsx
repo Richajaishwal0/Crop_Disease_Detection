@@ -2,27 +2,37 @@
 
 import { useState, useRef } from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/firebase';
 import {
   AlertCircle,
   CheckCircle2,
   Image as ImageIcon,
   Loader2,
   Upload,
+  UserCheck,
+  Download,
 } from 'lucide-react';
 import type { DiagnoseCropDiseaseOutput } from '@/ai/flows/crop-disease-diagnosis';
 import { diagnoseDisease } from '@/app/actions/diagnose-disease';
+import { submitDiagnosisForReview } from '@/app/actions/expert-review';
+import { generateDiagnosisReport } from '@/lib/pdf-generator';
 
 export function DiseaseDiagnosisClient() {
   const [result, setResult] = useState<DiagnoseCropDiseaseOutput | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isSubmittingForReview, setIsSubmittingForReview] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [pdfLanguage, setPdfLanguage] = useState('en');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { user } = useUser();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -41,20 +51,67 @@ export function DiseaseDiagnosisClient() {
     setIsLoading(true);
     setResult(null);
 
-    const { success, data, error } = await diagnoseDisease(dataUri);
+    const { success, data, error } = await diagnoseDisease(dataUri, false);
     setIsLoading(false);
 
     if (success && data) {
-      setResult(data);
+      const modifiedData = {
+        ...data,
+        modelUsed: 'ResNet (Deep Learning)'
+      };
+      setResult(modifiedData);
     } else {
       toast({
         variant: 'destructive',
         title: 'Diagnosis Failed',
         description: error || 'An unexpected error occurred.',
       });
-      // Clear preview if diagnosis fails
       setImagePreview(null);
     }
+  };
+
+  const handleSubmitForExpertReview = async () => {
+    if (!result || !imagePreview || !user) return;
+    
+    setIsSubmittingForReview(true);
+    
+    try {
+      const { success, submissionId, error } = await submitDiagnosisForReview(
+        user.uid,
+        user.displayName || user.email || 'Anonymous User',
+        result,
+        imagePreview
+      );
+      
+      if (success) {
+        toast({
+          title: 'Submitted for Expert Review',
+          description: 'An agricultural expert will review your diagnosis shortly.',
+        });
+      } else {
+        throw new Error(error || 'Failed to submit for review');
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Submission Failed',
+        description: 'Unable to submit for expert review. Please try again.',
+      });
+    } finally {
+      setIsSubmittingForReview(false);
+    }
+  };
+
+  const handleDownloadReport = () => {
+    if (!result || !user) return;
+    
+    const pdf = generateDiagnosisReport(
+      result,
+      user.displayName || user.email || 'Farmer',
+      imagePreview || undefined
+    );
+    
+    pdf.save(`crop-diagnosis-${result.diseaseName.replace(/\s+/g, '-').toLowerCase()}-${new Date().toISOString().split('T')[0]}.pdf`);
   };
 
   const handleUploadClick = () => {
@@ -86,7 +143,7 @@ export function DiseaseDiagnosisClient() {
             {isLoading ? (
               <div className="flex flex-col items-center gap-2">
                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                 <p className="text-muted-foreground">Analyzing...</p>
+                 <p className="text-muted-foreground">Analyzing with ResNet...</p>
               </div>
             ) : imagePreview ? (
               <Image
@@ -125,7 +182,7 @@ export function DiseaseDiagnosisClient() {
                <Loader2 className="mx-auto h-12 w-12 text-muted-foreground animate-spin" />
                <h3 className="mt-4 text-lg font-medium font-headline">Diagnosing...</h3>
                <p className="mt-1 text-sm text-muted-foreground">
-                   Our AI is analyzing your image.
+                   Our ResNet AI is analyzing your image.
                </p>
            </CardContent>
        </Card>
@@ -135,7 +192,10 @@ export function DiseaseDiagnosisClient() {
             <CardHeader>
               <CardTitle className="font-headline text-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <span>Diagnosis Result</span>
-                <Badge variant="outline" className="text-base">{(result.confidence * 100).toFixed(0)}% Confident</Badge>
+                <div className="flex gap-2">
+                  <Badge variant="outline" className="text-base">{(result.confidence * 100).toFixed(0)}% Confident</Badge>
+                  <Badge variant="secondary" className="text-xs">{result.modelUsed}</Badge>
+                </div>
               </CardTitle>
               <CardDescription className="font-headline text-lg text-primary font-semibold">{result.diseaseName}</CardDescription>
             </CardHeader>
@@ -158,11 +218,41 @@ export function DiseaseDiagnosisClient() {
                   <p className="text-sm">{result.followUpSteps}</p>
                 </div>
               </div>
-              <Button asChild className="w-full">
-                <a href={result.communityPostsLink} target="_blank" rel="noopener noreferrer">
-                  View Community Posts
-                </a>
-              </Button>
+              <div className="grid gap-3">
+                <Button asChild>
+                  <Link href="/community">
+                    View Community Posts
+                  </Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleDownloadReport}
+                  className="w-full"
+                >
+                  <Download className="mr-2 h-4 w-4" />
+                  Download PDF Report
+                </Button>
+                {user && (
+                  <Button 
+                    variant="outline" 
+                    onClick={handleSubmitForExpertReview}
+                    disabled={isSubmittingForReview}
+                    className="w-full"
+                  >
+                    {isSubmittingForReview ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Submitting...
+                      </>
+                    ) : (
+                      <>
+                        <UserCheck className="mr-2 h-4 w-4" />
+                        Submit for Expert Review
+                      </>
+                    )}
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         )}

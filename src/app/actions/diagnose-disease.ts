@@ -6,7 +6,8 @@ import {
 } from '@/ai/flows/crop-disease-diagnosis';
 
 export async function diagnoseDisease(
-  photoDataUri: string
+  photoDataUri: string,
+  useResNet: boolean = true
 ): Promise<{
   success: boolean;
   data?: DiagnoseCropDiseaseOutput;
@@ -17,7 +18,7 @@ export async function diagnoseDisease(
   }
 
   try {
-    const result = await diagnoseCropDisease({ photoDataUri });
+    const result = await diagnoseCropDisease({ photoDataUri, useResNet });
     return { success: true, data: result };
   } catch (e) {
     console.error(e);

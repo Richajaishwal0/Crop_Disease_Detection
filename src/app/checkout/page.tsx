@@ -1,372 +1,405 @@
 'use client';
 
-import { useCart } from '@/context/cart-provider';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import Image from 'next/image';
-import { Separator } from '@/components/ui/separator';
-import { useForm, Controller } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useRouter } from 'next/navigation';
-import { Textarea } from '@/components/ui/textarea';
-import { CreditCard, QrCode, Wallet, Loader2 } from 'lucide-react';
-import { useUser, useFirestore } from '@/firebase';
-import { useToast } from '@/hooks/use-toast';
-import { createOrder } from '@/lib/actions/order';
 import { useState, useEffect } from 'react';
+import { useUser } from '@/firebase';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { getCartItems, createOrder } from '@/app/actions/marketplace';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-const baseCheckoutSchema = z.object({
-  name: z.string().min(2, 'Name is required'),
-  address1: z.string().min(5, 'Address is required'),
-  city: z.string().min(2, 'City is required'),
-  state: z.string().min(2, 'State is required'),
-  pincode: z.string().length(6, 'Pincode must be 6 digits'),
-});
+interface ShippingAddress {
+  fullName: string;
+  email: string;
+  phone: string;
+  address: string;
+  city: string;
+  state: string;
+  zipCode: string;
+  country: string;
+}
 
-const checkoutSchema = z.discriminatedUnion('paymentMethod', [
-  z.object({
-    paymentMethod: z.literal('cod'),
-    ...baseCheckoutSchema.shape,
-  }),
-  z.object({
-    paymentMethod: z.literal('upi'),
-    upiId: z.string().min(3, 'A valid UPI ID is required.'),
-    ...baseCheckoutSchema.shape,
-  }),
-  z.object({
-    paymentMethod: z.literal('card'),
-    cardNumber: z.string().regex(/^\d{16}$/, 'Card number must be 16 digits.'),
-    expiryDate: z.string().regex(/^(0[1-9]|1[0-2])\/\d{2}$/, 'Expiry must be in MM/YY format.'),
-    cvv: z.string().regex(/^\d{3}$/, 'CVV must be 3 digits.'),
-    ...baseCheckoutSchema.shape,
-  }),
-]);
-
+interface PaymentInfo {
+  method: 'card' | 'cod';
+  cardNumber: string;
+  expiryDate: string;
+  cvv: string;
+  cardName: string;
+}
 
 export default function CheckoutPage() {
-  const { cart, clearCart } = useCart();
   const { user } = useUser();
-  const firestore = useFirestore();
   const { toast } = useToast();
   const router = useRouter();
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const subtotal = cart.reduce((acc, item) => acc + item.price * item.quantity, 0);
-  const tax = subtotal * 0.05; // 5% tax
-  const total = subtotal + tax;
-
-  const form = useForm<z.infer<typeof checkoutSchema>>({
-    resolver: zodResolver(checkoutSchema),
-    defaultValues: {
-      name: '',
-      address1: '',
-      city: '',
-      state: '',
-      pincode: '',
-      paymentMethod: 'cod',
-    },
+  const [cartItems, setCartItems] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState(false);
+  
+  const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
+    fullName: '',
+    email: user?.email || '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zipCode: '',
+    country: 'United States'
   });
 
-  const paymentMethod = form.watch('paymentMethod');
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
+    method: 'card',
+    cardNumber: '',
+    expiryDate: '',
+    cvv: '',
+    cardName: ''
+  });
 
   useEffect(() => {
-    // If the cart is empty and we are on the client, redirect to the cart page.
-    // This prevents rendering the checkout page when there's nothing to check out.
-    if (cart.length === 0) {
-      router.replace('/cart');
+    if (user) {
+      loadCartItems();
+      setShippingAddress(prev => ({ ...prev, email: user.email || '' }));
     }
-  }, [cart, router]);
+  }, [user]);
 
-  async function onSubmit(data: z.infer<typeof checkoutSchema>) {
-    if (!user || !firestore) {
-        toast({
-            variant: 'destructive',
-            title: 'Error',
-            description: 'You must be logged in to place an order.',
-        });
-        return;
-    }
-    setIsProcessing(true);
+  const loadCartItems = async () => {
+    if (!user) return;
+    
     try {
-        const { name, address1, city, state, pincode, paymentMethod } = data;
-        const shippingAddress = { name, address1, city, state, pincode };
-
-        await createOrder(firestore, user, cart, total, shippingAddress, paymentMethod);
-        
-        clearCart();
-        router.push('/order-placed');
-    } catch (error: any) {
-        toast({
-            variant: 'destructive',
-            title: 'Order Failed',
-            description: error.message || 'There was an issue placing your order.',
-        });
+      const items = await getCartItems(user.uid);
+      if (items.length === 0) {
+        router.push('/cart');
+        return;
+      }
+      setCartItems(items);
+    } catch (error) {
+      console.error('Error loading cart:', error);
     } finally {
-        setIsProcessing(false);
+      setLoading(false);
     }
+  };
+
+  const validateForm = () => {
+    const { fullName, email, phone, address, city, state, zipCode } = shippingAddress;
+    
+    if (!fullName || !email || !phone || !address || !city || !state || !zipCode) {
+      toast({ title: 'Error', description: 'Please fill in all shipping address fields', variant: 'destructive' });
+      return false;
+    }
+
+    if (paymentInfo.method === 'card') {
+      const { cardNumber, expiryDate, cvv, cardName } = paymentInfo;
+      if (!cardNumber || !expiryDate || !cvv || !cardName) {
+        toast({ title: 'Error', description: 'Please fill in all payment details', variant: 'destructive' });
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  const handlePlaceOrder = async () => {
+    if (!validateForm()) return;
+    
+    setProcessing(true);
+    try {
+      const orderItems = cartItems.map(item => ({
+        productId: item.productId,
+        name: item.product.name,
+        price: item.product.price,
+        quantity: item.quantity,
+        total: item.product.price * item.quantity
+      }));
+      
+      const totalAmount = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+      
+      const orderData = {
+        items: orderItems,
+        totalAmount,
+        shippingAddress,
+        paymentMethod: paymentInfo.method,
+        status: 'confirmed'
+      };
+      
+      const result = await createOrder(user!.uid, orderData.items, totalAmount, orderData);
+      
+      if (result.success) {
+        toast({ title: 'Order placed successfully!', description: `Order ID: ${result.orderId}` });
+        router.push(`/orders?success=${result.orderId}`);
+      } else {
+        toast({ title: 'Error', description: result.message, variant: 'destructive' });
+      }
+    } catch (error) {
+      console.error('Order error:', error);
+      toast({ title: 'Error', description: 'Failed to process order', variant: 'destructive' });
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const totalAmount = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
+  const shippingCost = totalAmount > 100 ? 0 : 9.99;
+  const tax = totalAmount * 0.08;
+  const finalTotal = totalAmount + shippingCost + tax;
+
+  if (!user) {
+    return (
+      <div className="text-center py-20">
+        <h2 className="text-2xl font-semibold">Please login to checkout</h2>
+        <Link href="/login">
+          <Button className="mt-4">Login</Button>
+        </Link>
+      </div>
+    );
   }
 
-  // If the cart is empty, render nothing or a loading state until the redirect happens.
-  if (cart.length === 0) {
-    return null;
+  if (loading) {
+    return <div className="text-center py-12">Loading checkout...</div>;
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="max-w-4xl mx-auto">
-        <div className="space-y-2 mb-8">
-          <h1 className="font-headline text-3xl md:text-4xl font-bold tracking-tight">Checkout</h1>
-          <p className="text-muted-foreground">Complete your order by providing the details below.</p>
+    <div className="max-w-6xl mx-auto space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold">Checkout</h1>
+        <p className="text-muted-foreground">Complete your order</p>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          {/* Shipping Address */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Shipping Address</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="fullName">Full Name *</Label>
+                  <Input
+                    id="fullName"
+                    value={shippingAddress.fullName}
+                    onChange={(e) => setShippingAddress(prev => ({ ...prev, fullName: e.target.value }))}
+                    placeholder="John Doe"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="email">Email *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={shippingAddress.email}
+                    onChange={(e) => setShippingAddress(prev => ({ ...prev, email: e.target.value }))}
+                    placeholder="john@example.com"
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <Label htmlFor="phone">Phone Number *</Label>
+                <Input
+                  id="phone"
+                  value={shippingAddress.phone}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+1 (555) 123-4567"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="address">Street Address *</Label>
+                <Textarea
+                  id="address"
+                  value={shippingAddress.address}
+                  onChange={(e) => setShippingAddress(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="123 Main Street, Apt 4B"
+                  rows={2}
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="city">City *</Label>
+                  <Input
+                    id="city"
+                    value={shippingAddress.city}
+                    onChange={(e) => setShippingAddress(prev => ({ ...prev, city: e.target.value }))}
+                    placeholder="New York"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="state">State *</Label>
+                  <Input
+                    id="state"
+                    value={shippingAddress.state}
+                    onChange={(e) => setShippingAddress(prev => ({ ...prev, state: e.target.value }))}
+                    placeholder="NY"
+                  />
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="zipCode">ZIP Code *</Label>
+                  <Input
+                    id="zipCode"
+                    value={shippingAddress.zipCode}
+                    onChange={(e) => setShippingAddress(prev => ({ ...prev, zipCode: e.target.value }))}
+                    placeholder="10001"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="country">Country *</Label>
+                  <Input
+                    id="country"
+                    value={shippingAddress.country}
+                    onChange={(e) => setShippingAddress(prev => ({ ...prev, country: e.target.value }))}
+                    placeholder="United States"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Payment Information */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Payment Information</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RadioGroup
+                value={paymentInfo.method}
+                onValueChange={(value: 'card' | 'cod') => setPaymentInfo(prev => ({ ...prev, method: value }))}
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="card" id="card" />
+                  <Label htmlFor="card">Credit/Debit Card</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="cod" id="cod" />
+                  <Label htmlFor="cod">Cash on Delivery</Label>
+                </div>
+              </RadioGroup>
+
+              {paymentInfo.method === 'card' && (
+                <div className="space-y-4 pt-4">
+                  <div>
+                    <Label htmlFor="cardName">Cardholder Name *</Label>
+                    <Input
+                      id="cardName"
+                      value={paymentInfo.cardName}
+                      onChange={(e) => setPaymentInfo(prev => ({ ...prev, cardName: e.target.value }))}
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  
+                  <div>
+                    <Label htmlFor="cardNumber">Card Number *</Label>
+                    <Input
+                      id="cardNumber"
+                      value={paymentInfo.cardNumber}
+                      onChange={(e) => setPaymentInfo(prev => ({ ...prev, cardNumber: e.target.value }))}
+                      placeholder="1234 5678 9012 3456"
+                      maxLength={19}
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="expiryDate">Expiry Date *</Label>
+                      <Input
+                        id="expiryDate"
+                        value={paymentInfo.expiryDate}
+                        onChange={(e) => setPaymentInfo(prev => ({ ...prev, expiryDate: e.target.value }))}
+                        placeholder="MM/YY"
+                        maxLength={5}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="cvv">CVV *</Label>
+                      <Input
+                        id="cvv"
+                        value={paymentInfo.cvv}
+                        onChange={(e) => setPaymentInfo(prev => ({ ...prev, cvv: e.target.value }))}
+                        placeholder="123"
+                        maxLength={4}
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {paymentInfo.method === 'cod' && (
+                <div className="p-4 bg-muted rounded-lg">
+                  <p className="text-sm">You will pay in cash when your order is delivered. Please have the exact amount ready.</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Shipping & Payment</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                 <div className="space-y-4">
-                    <h3 className="font-medium">Shipping Address</h3>
-                    <FormField
-                    control={form.control}
-                    name="name"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Full Name</FormLabel>
-                        <FormControl>
-                            <Input placeholder="Enter your full name" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <FormField
-                    control={form.control}
-                    name="address1"
-                    render={({ field }) => (
-                        <FormItem>
-                        <FormLabel>Address</FormLabel>
-                        <FormControl>
-                            <Input placeholder="1234 Main St" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                        </FormItem>
-                    )}
-                    />
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                         <FormField
-                            control={form.control}
-                            name="city"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>City</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g. Mumbai" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="state"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>State</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g. Maharashtra" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                         <FormField
-                            control={form.control}
-                            name="pincode"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Pincode</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="e.g. 400001" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+        {/* Order Summary */}
+        <div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Order Summary</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex justify-between items-center">
+                    <div className="flex-1">
+                      <p className="font-medium">{item.product.name}</p>
+                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                     </div>
+                    <p className="font-medium">${(item.product.price * item.quantity).toFixed(2)}</p>
+                  </div>
+                ))}
+              </div>
+              
+              <Separator />
+              
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>${totalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span>{shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax</span>
+                  <span>${tax.toFixed(2)}</span>
                 </div>
                 <Separator />
-                <FormField
-                  control={form.control}
-                  name="paymentMethod"
-                  render={({ field }) => (
-                    <FormItem className="space-y-3">
-                      <FormLabel>Payment Method</FormLabel>
-                      <FormControl>
-                        <RadioGroup
-                          onValueChange={field.onChange}
-                          defaultValue={field.value}
-                          className="grid grid-cols-1 sm:grid-cols-3 gap-4"
-                        >
-                          <FormItem>
-                            <FormControl>
-                                <RadioGroupItem value="cod" id="cod" className="peer sr-only" />
-                            </FormControl>
-                            <FormLabel htmlFor="cod" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 [&:has([data-state=checked])]:border-primary">
-                                <Wallet className="mb-3 h-6 w-6" />
-                                Cash on Delivery
-                            </FormLabel>
-                          </FormItem>
-                          <FormItem>
-                            <FormControl>
-                                <RadioGroupItem value="upi" id="upi" className="peer sr-only" />
-                            </FormControl>
-                            <FormLabel htmlFor="upi" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 [&:has([data-state=checked])]:border-primary">
-                                <QrCode className="mb-3 h-6 w-6" />
-                                UPI / QR Code
-                            </FormLabel>
-                          </FormItem>
-                           <FormItem>
-                            <FormControl>
-                                <RadioGroupItem value="card" id="card" className="peer sr-only" />
-                            </FormControl>
-                            <FormLabel htmlFor="card" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary peer-data-[state=checked]:bg-primary/10 [&:has([data-state=checked])]:border-primary">
-                                <CreditCard className="mb-3 h-6 w-6" />
-                                Credit / Debit Card
-                            </FormLabel>
-                          </FormItem>
-                        </RadioGroup>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {paymentMethod === 'card' && (
-                    <div className="space-y-4 p-4 border rounded-md animate-in fade-in-50">
-                         <FormField
-                            control={form.control}
-                            name="cardNumber"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Card Number</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="0000 0000 0000 0000" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <div className="grid grid-cols-2 gap-4">
-                             <FormField
-                                control={form.control}
-                                name="expiryDate"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Expiry Date</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="MM/YY" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                             <FormField
-                                control={form.control}
-                                name="cvv"
-                                render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>CVV</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="123" {...field} />
-                                    </FormControl>
-                                    <FormMessage />
-                                    </FormItem>
-                                )}
-                            />
-                        </div>
-                    </div>
-                )}
-                 {paymentMethod === 'upi' && (
-                     <div className="space-y-4 p-4 border rounded-md animate-in fade-in-50">
-                        <FormField
-                            control={form.control}
-                            name="upiId"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>UPI ID</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="yourname@bank" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                    </div>
-                )}
-
-              </CardContent>
-            </Card>
-          </div>
-          <div className="lg:col-span-1">
-            <Card className="sticky top-20">
-              <CardHeader>
-                <CardTitle>Order Summary</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                    {cart.map(item => (
-                        <div key={item.id} className="flex justify-between items-center text-sm">
-                            <div className="flex items-center gap-2">
-                                <Image src={item.imageUrl} alt={item.name} width={40} height={40} className="rounded-md object-cover border" />
-                                <div>
-                                    <p className="font-medium">{item.name}</p>
-                                    <p className="text-muted-foreground">Qty: {item.quantity}</p>
-                                </div>
-                            </div>
-                            <p>₹{(item.price * item.quantity).toFixed(2)}</p>
-                        </div>
-                    ))}
+                <div className="flex justify-between font-semibold text-lg">
+                  <span>Total</span>
+                  <span>${finalTotal.toFixed(2)}</span>
                 </div>
-                <Separator className="my-4" />
-                <div className="space-y-2">
-                    <div className="flex justify-between text-sm">
-                        <p className="text-muted-foreground">Subtotal</p>
-                        <p>₹{subtotal.toFixed(2)}</p>
-                    </div>
-                        <div className="flex justify-between text-sm">
-                        <p className="text-muted-foreground">Taxes (5%)</p>
-                        <p>₹{tax.toFixed(2)}</p>
-                    </div>
-                    <Separator className="my-2" />
-                    <div className="flex justify-between font-bold text-lg">
-                        <p>Total</p>
-                        <p>₹{total.toFixed(2)}</p>
-                    </div>
-                </div>
-              </CardContent>
-              <CardFooter>
-                <Button type="submit" className="w-full" disabled={isProcessing}>
-                    {isProcessing && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Place Order
+              </div>
+              
+              <Button 
+                className="w-full" 
+                size="lg"
+                onClick={handlePlaceOrder}
+                disabled={processing}
+              >
+                {processing ? 'Processing...' : `Place Order - $${finalTotal.toFixed(2)}`}
+              </Button>
+              
+              <Link href="/cart">
+                <Button variant="outline" className="w-full">
+                  Back to Cart
                 </Button>
-              </CardFooter>
-            </Card>
-          </div>
+              </Link>
+            </CardContent>
+          </Card>
         </div>
-      </form>
-    </Form>
+      </div>
+    </div>
   );
 }

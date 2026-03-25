@@ -7,7 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { PostCard } from './post-card';
 import type { Post } from '@/lib/actions/community';
-import { MessageCircle, UserPlus, Loader2, Calendar } from 'lucide-react';
+import { MessageCircle, UserPlus, UserMinus, Loader2, Calendar } from 'lucide-react';
 import { Timestamp } from 'firebase/firestore';
 import { Button } from '../ui/button';
 import { getOrCreateConversation } from '@/lib/actions/messages';
@@ -17,6 +17,7 @@ import { useUserProfileDialog } from '@/context/user-profile-dialog-provider';
 import { useAuthActions } from '@/hooks/use-auth-actions';
 import { formatUsername, formatTimestamp } from '@/lib/utils';
 import type { UserProfile } from '@/types';
+import { followUser, unfollowUser } from '@/app/actions/follow';
 
 
 interface UserProfileClientProps {
@@ -31,6 +32,7 @@ export function UserProfileClient({ username }: UserProfileClientProps) {
   const { hideProfile } = useUserProfileDialog();
   const { voteOnPost } = useAuthActions();
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   const userQuery = useMemo(() => {
     if (!firestore) return null;
@@ -74,6 +76,30 @@ export function UserProfileClient({ username }: UserProfileClientProps) {
     }
   }
 
+  const handleFollow = async () => {
+    if (!currentUser || !userProfile) return;
+    setIsFollowLoading(true);
+    const result = await followUser(currentUser.uid, userProfile.uid);
+    if (result.success) {
+      toast({ title: 'Followed successfully' });
+    } else {
+      toast({ variant: 'destructive', title: 'Failed to follow' });
+    }
+    setIsFollowLoading(false);
+  };
+
+  const handleUnfollow = async () => {
+    if (!currentUser || !userProfile) return;
+    setIsFollowLoading(true);
+    const result = await unfollowUser(currentUser.uid, userProfile.uid);
+    if (result.success) {
+      toast({ title: 'Unfollowed successfully' });
+    } else {
+      toast({ variant: 'destructive', title: 'Failed to unfollow' });
+    }
+    setIsFollowLoading(false);
+  };
+
   const getInitials = (name: string) => {
     if (!name) return '';
     return name.split(' ').map((n) => n[0]).join('').toUpperCase();
@@ -94,6 +120,12 @@ export function UserProfileClient({ username }: UserProfileClientProps) {
   
   const joinDate = userProfile.createdAt instanceof Timestamp ? userProfile.createdAt.toDate() : new Date(userProfile.createdAt);
   const isOwnProfile = currentUser?.uid === userProfile.uid;
+  
+  const { data: currentUserProfiles } = useCollection<UserProfile>(
+    currentUser && firestore ? query(collection(firestore, 'users'), where('uid', '==', currentUser.uid), limit(1)) : null
+  );
+  const currentUserProfile = currentUserProfiles?.[0];
+  const isFollowing = currentUserProfile?.following?.includes(userProfile.uid) || false;
 
   return (
     <div className="space-y-8">
@@ -114,6 +146,9 @@ export function UserProfileClient({ username }: UserProfileClientProps) {
             <div className="mt-4">
                 <h1 className="text-2xl sm:text-3xl font-bold font-headline">
                     {userProfile.displayName}
+                    {userProfile.role === 'expert' && (
+                      <span className="ml-2 text-sm bg-primary text-primary-foreground px-2 py-1 rounded">Expert</span>
+                    )}
                 </h1>
                 <p className="text-sm sm:text-base text-muted-foreground">
                     {formatUsername(userProfile.username, userProfile.role)}
@@ -125,10 +160,17 @@ export function UserProfileClient({ username }: UserProfileClientProps) {
             </div>
              {!isOwnProfile && currentUser && (
                 <div className='flex items-center gap-2 mt-4'>
-                    <Button size="sm">
+                    {isFollowing ? (
+                      <Button size="sm" variant="outline" onClick={handleUnfollow} disabled={isFollowLoading}>
+                        <UserMinus className='mr-2 h-4 w-4' />
+                        Unfollow
+                      </Button>
+                    ) : (
+                      <Button size="sm" onClick={handleFollow} disabled={isFollowLoading}>
                         <UserPlus className='mr-2 h-4 w-4' />
                         Follow
-                    </Button>
+                      </Button>
+                    )}
                     <Button size="sm" variant='outline' onClick={handleStartConversation} disabled={isCreatingConversation}>
                         {isCreatingConversation ? (
                             <Loader2 className='mr-2 h-4 w-4 animate-spin' />

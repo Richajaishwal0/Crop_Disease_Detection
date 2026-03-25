@@ -95,10 +95,12 @@ export default function DashboardPage() {
             {filteredAiTools.map((feature) => (
               <Card
                 key={feature.title}
-                className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                className="flex flex-col overflow-hidden card-interactive cursor-pointer shadow-theme shadow-theme-hover border-2 hover:border-primary/20"
               >
-                <CardHeader className="flex flex-row items-center gap-4">
-                  {feature.icon}
+                <CardHeader className="flex flex-row items-center gap-4 pb-3">
+                  <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                    {feature.icon}
+                  </div>
                   <div className="flex-1">
                     <CardTitle className="font-headline text-xl">
                       {feature.title}
@@ -106,12 +108,12 @@ export default function DashboardPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                  <CardDescription>{feature.description}</CardDescription>
+                  <CardDescription className="text-base">{feature.description}</CardDescription>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="pt-4">
                   <Button
                     asChild
-                    className="w-full"
+                    className="w-full touch-target interactive"
                     variant={feature.disabled ? 'secondary' : 'default'}
                     disabled={feature.disabled}
                   >
@@ -124,7 +126,7 @@ export default function DashboardPage() {
                   </Button>
                 </CardFooter>
               </Card>
-            ))}
+            ))}}}
           </div>
         ) : (
           <p className="text-muted-foreground text-center py-4">{t.noAiToolsFound}</p>
@@ -144,10 +146,12 @@ export default function DashboardPage() {
             {filteredPlatformFeatures.map((feature) => (
                 <Card
                 key={feature.title}
-                className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                className="flex flex-col overflow-hidden card-interactive cursor-pointer shadow-theme shadow-theme-hover border-2 hover:border-primary/20"
                 >
-                <CardHeader className="flex flex-row items-center gap-4">
-                    {feature.icon}
+                <CardHeader className="flex flex-row items-center gap-4 pb-3">
+                    <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                      {feature.icon}
+                    </div>
                     <div className="flex-1">
                     <CardTitle className="font-headline text-xl">
                         {feature.title}
@@ -155,12 +159,12 @@ export default function DashboardPage() {
                     </div>
                 </CardHeader>
                 <CardContent className="flex-grow">
-                    <CardDescription>{feature.description}</CardDescription>
+                    <CardDescription className="text-base">{feature.description}</CardDescription>
                 </CardContent>
-                <CardFooter>
+                <CardFooter className="pt-4">
                     <Button
                     asChild
-                    className="w-full"
+                    className="w-full touch-target interactive"
                     variant={feature.disabled ? 'secondary' : 'default'}
                     disabled={feature.disabled}
                     >

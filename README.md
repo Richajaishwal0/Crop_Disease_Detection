@@ -6,78 +6,160 @@ Welcome to **Farmingo**, your all-in-one web platform engineered to empower farm
 
 ## ✨ Core Features
 
-Farmingo is designed with the modern farmer in mind, providing a comprehensive set of tools to tackle daily challenges and seize new opportunities.
-
 ### 🤖 AI-Powered Intelligence Hub
--   **📈 Crop Price Prediction**: Leverage sophisticated AI models to forecast market prices for various crops. Make informed decisions on when to sell to maximize your profits.
--   **🌿 Crop Disease Diagnosis**: Instantly diagnose crop diseases by simply uploading a photo. Our AI provides a detailed analysis, severity assessment, and actionable treatment recommendations.
--   **🌦️ Weather Prediction & Advisory**: Access hyper-localized weather forecasts and receive intelligent farming advice tailored to current and upcoming weather patterns, helping you optimize your activities from planting to harvest.
--   **🗣️ Smart Translation**: Break down language barriers with seamless, AI-powered text translation across the platform, including community posts and marketplace listings.
+
+- **📈 Crop Price Prediction**: Forecast market prices for various crops using AI models.
+- **🌿 Crop Disease Diagnosis**: Diagnose crop diseases by uploading a photo with severity assessment and treatment recommendations.
+- **🌦️ Weather Prediction & Advisory**: Hyper-localized weather forecasts with intelligent farming advice.
+- **🗣️ Smart Translation**: AI-powered text translation across the platform.
 
 ### ⚙️ Integrated Platform Tools
--   **🛒 Dual Marketplace**: A versatile e-commerce system:
-    -   **Verified Market**: A trusted space for certified sellers to list high-quality products directly.
-    -   **Indirect Market**: A community-driven forum where any user can post items for sale, trade, or hire.
--   **💬 Community Hub**: A dynamic social forum where farmers can connect, ask questions, share knowledge, and build a supportive network with peers and agricultural experts.
--   **👤 User Profiles & Messaging**: Manage your public profile, set a default location for weather predictions, follow other users, and engage in private one-on-one conversations with direct messaging.
--   **🛒 Shopping Cart & Orders**: A full-featured e-commerce experience, from adding products to a persistent cart to managing order history.
+
+- **🛒 Dual Marketplace**: Verified Market for certified sellers + Indirect Market for community listings.
+- **💬 Community Hub**: Social forum for farmers to connect, ask questions, and share knowledge.
+- **👤 User Profiles & Messaging**: Public profiles, follow system, and private direct messaging.
+- **🛒 Shopping Cart & Orders**: Full e-commerce experience with cart and order history.
 
 ---
 
 ## 🛠️ Technology Stack
 
-This project is built on a modern, robust, and scalable technology stack, ensuring a high-quality user experience and developer-friendly codebase.
-
--   **Framework**: [Next.js](https://nextjs.org/) (App Router)
--   **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore)
--   **Generative AI**: [Google's Gemini models](https://ai.google.dev/) via [Genkit](https://firebase.google.com/docs/genkit)
--   **UI Components**: [ShadCN UI](https://ui.shadcn.com/)
--   **Styling**: [Tailwind CSS](https://tailwindcss.com/) with CSS-in-JS for theming
--   **Language**: [TypeScript](https://www.typescriptlang.org/)
--   **Deployment**: Optimized for [Firebase App Hosting](https://firebase.google.com/docs/app-hosting)
+- **Framework**: [Next.js](https://nextjs.org/) (App Router)
+- **Backend & Database**: [Firebase](https://firebase.google.com/) (Authentication, Firestore)
+- **Generative AI**: [Google's Gemini models](https://ai.google.dev/) via [Genkit](https://firebase.google.com/docs/genkit)
+- **UI Components**: [ShadCN UI](https://ui.shadcn.com/)
+- **Styling**: [Tailwind CSS](https://tailwindcss.com/)
+- **Language**: [TypeScript](https://www.typescriptlang.org/)
+- **Deployment**: Optimized for [Firebase App Hosting](https://firebase.google.com/docs/app-hosting)
 
 ---
 
 ## 🚀 Getting Started
 
-To get a local copy up and running, follow these simple steps.
-
 ### Prerequisites
 
--   Node.js (v18 or newer recommended)
--   npm (or your preferred package manager like yarn or pnpm)
+- Node.js (v18 or newer)
+- npm
+- A Firebase project
+- A Google Gemini API key
 
-### Installation & Setup
+---
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/SwapCodesDev/farmingo.git
-    cd farmingo
-    ```
+## 🔧 Firebase Setup
 
-2.  **Install Dependencies:**
-    This command installs all the necessary packages for the project.
-    ```bash
-    npm install
-    ```
+### Step 1 — Create a Firebase Project
 
-3.  **Run the Development Server:**
-    Once dependencies are installed, start the Next.js development server.
-    ```bash
-    npm run dev
-    ```
+1. Go to [Firebase Console](https://console.firebase.google.com)
+2. Click **Add project** → name it (e.g. `farmingo`) → create
+3. Enable **Authentication** → Sign-in method → enable **Email/Password**
+4. Enable **Firestore Database** → Start in production mode
 
-4.  **Open the App:**
-    The application will be available at [http://localhost:9002](http://localhost:9002).
+---
 
-### Running Genkit Flows (Optional)
+### Step 2 — Get Firebase Client Config
 
-If you are developing AI features, you may want to run the Genkit development UI to inspect and test your flows.
+1. In Firebase Console → **Project Settings** (⚙️) → **General** tab
+2. Scroll to **Your apps** → click **Web app** (or add one)
+3. Copy the config values — you'll need them for `.env.local`
 
+---
+
+### Step 3 — Get Firebase Admin Service Account
+
+The Admin SDK is used for all server-side Firestore operations (server actions).
+
+1. In Firebase Console → **Project Settings** → **Service accounts** tab
+2. Click **Generate new private key** → download the JSON file
+3. Rename it to `service-account.json` and place it in the **project root** (`farmingo/service-account.json`)
+
+> ⚠️ `service-account.json` is in `.gitignore` — never commit it to git.
+
+---
+
+### Step 4 — Get Gemini API Key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Click **Create API key**
+3. Copy the key
+
+---
+
+### Step 5 — Create `.env.local`
+
+Create a `.env.local` file in the project root (`farmingo/.env.local`) with the following:
+
+```env
+# Firebase Client SDK (public — used in browser)
+NEXT_PUBLIC_FIREBASE_API_KEY=your-firebase-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project-id.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-app-id
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your-sender-id
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project-id.appspot.com
+
+# Firebase Admin SDK (server-side — points to service-account.json)
+GOOGLE_APPLICATION_CREDENTIALS=./service-account.json
+
+# Google Gemini AI API Key
+GOOGLE_GENAI_API_KEY=your-gemini-api-key
+GEMINI_API_KEY=your-gemini-api-key
+GOOGLE_API_KEY=your-gemini-api-key
+```
+
+> ⚠️ `.env.local` is in `.gitignore` — never commit it to git.
+
+---
+
+### Step 6 — Deploy Firestore Security Rules
+
+Install Firebase CLI and deploy the rules:
+
+```bash
+npm install -g firebase-tools
+firebase login
+firebase deploy --only firestore:rules
+```
+
+This deploys `firestore.rules` which controls read/write access to all collections.
+
+---
+
+### Step 7 — Seed Marketplace Products
+
+Run the seed script to populate the `products` collection in Firestore:
+
+```bash
+node scripts/seed-products.js
+```
+
+---
+
+## 🔐 Security Notes
+
+| File | Gitignored | Purpose |
+|---|---|---|
+| `.env.local` | ✅ Yes | All API keys and config |
+| `service-account.json` | ✅ Yes | Firebase Admin private key |
+| `src/firebase/config.ts` | ✅ Yes | Firebase client config (reads from env) |
+
+All sensitive credentials are loaded from environment variables — no keys are hardcoded in source code.
+
+---
+
+## ▶️ Running the Project
+
+**Terminal 1 — Next.js app:**
+```bash
+npm install
+npm run dev
+```
+App runs at → http://localhost:9002
+
+**Terminal 2 — Genkit AI server (for AI features):**
 ```bash
 npm run genkit:watch
 ```
-This will start the Genkit inspector, typically on [http://localhost:4000](http://localhost:4000).
+Genkit inspector runs at → http://localhost:4000
 
 ---
 

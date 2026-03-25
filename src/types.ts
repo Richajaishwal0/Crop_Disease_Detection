@@ -8,7 +8,10 @@ export type UserProfile = {
     email: string;
     photoURL?: string;
     createdAt: Timestamp;
-    role: 'admin' | 'moderator' | 'farmer' | 'user';
+    role: 'admin' | 'moderator' | 'farmer' | 'user' | 'expert';
     region: string;
     isVerified: boolean;
+    followers?: string[];
+    following?: string[];
+    specialization?: string;
 }
