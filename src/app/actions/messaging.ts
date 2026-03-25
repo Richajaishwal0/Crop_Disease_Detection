@@ -1,46 +1,6 @@
 'use server';
 
-interface Message {
-  id: string;
-  submissionId: string;
-  senderId: string;
-  senderName: string;
-  senderType: 'farmer' | 'expert';
-  message: string;
-  timestamp: Date;
-  read: boolean;
-}
-
-interface Notification {
-  id: string;
-  userId: string;
-  userType: 'farmer' | 'expert';
-  type: 'new_submission' | 'expert_response' | 'status_update' | 'new_message';
-  title: string;
-  message: string;
-  submissionId?: string;
-  timestamp: Date;
-  read: boolean;
-}
-
-// Persistent storage using localStorage (for demo)
-const getStoredNotifications = (): Notification[] => {
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('notifications');
-    return stored ? JSON.parse(stored) : [];
-  }
-  return [];
-};
-
-const saveNotifications = (notifs: Notification[]) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('notifications', JSON.stringify(notifs));
-  }
-};
-
-// Mock storage
-let messages: Message[] = [];
-let notifications: Notification[] = [];
+import { getAdminFirestore } from '@/firebase/admin';
 
 export async function sendMessage(
   submissionId: string,
@@ -50,23 +10,20 @@ export async function sendMessage(
   messageText: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const message: Message = {
-      id: `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    const db = getAdminFirestore();
+
+    await db.collection('messages').add({
       submissionId,
       senderId,
       senderName,
       senderType,
       message: messageText,
       timestamp: new Date(),
-      read: false
-    };
+      read: false,
+    });
 
-    messages.push(message);
-
-    // Create notification for recipient
     const recipientType = senderType === 'farmer' ? 'expert' : 'farmer';
-    const notification: Notification = {
-      id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+    await db.collection('notifications').add({
       userId: recipientType === 'expert' ? 'expert_1' : senderId,
       userType: recipientType,
       type: 'new_message',
@@ -74,10 +31,8 @@ export async function sendMessage(
       message: messageText.substring(0, 100) + (messageText.length > 100 ? '...' : ''),
       submissionId,
       timestamp: new Date(),
-      read: false
-    };
-
-    notifications.push(notification);
+      read: false,
+    });
 
     return { success: true };
   } catch (error) {
@@ -86,26 +41,45 @@ export async function sendMessage(
   }
 }
 
-export async function getMessages(submissionId: string): Promise<Message[]> {
-  return messages
-    .filter(m => m.submissionId === submissionId)
-    .sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime());
+export async function getMessages(submissionId: string): Promise<any[]> {
+  try {
+    const db = getAdminFirestore();
+    const snapshot = await db.collection('messages')
+      .where('submissionId', '==', submissionId)
+      .get();
+
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), timestamp: d.data().timestamp?.toDate?.() || d.data().timestamp }))
+      .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    return [];
+  }
 }
 
-export async function getNotifications(
-  userId: string,
-  userType: 'farmer' | 'expert'
-): Promise<Notification[]> {
-  notifications = getStoredNotifications();
-  return notifications
-    .filter(n => n.userId === userId && n.userType === userType)
-    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+export async function getNotifications(userId: string, userType: 'farmer' | 'expert'): Promise<any[]> {
+  try {
+    const db = getAdminFirestore();
+    const snapshot = await db.collection('notifications')
+      .where('userId', '==', userId)
+      .where('userType', '==', userType)
+      .get();
+
+    return snapshot.docs
+      .map(d => ({ id: d.id, ...d.data(), timestamp: d.data().timestamp?.toDate?.() || d.data().timestamp }))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  } catch (error) {
+    console.error('Error fetching notifications:', error);
+    return [];
+  }
 }
 
 export async function markNotificationAsRead(notificationId: string): Promise<void> {
-  const notification = notifications.find(n => n.id === notificationId);
-  if (notification) {
-    notification.read = true;
+  try {
+    const db = getAdminFirestore();
+    await db.collection('notifications').doc(notificationId).update({ read: true });
+  } catch (error) {
+    console.error('Failed to mark notification as read:', error);
   }
 }
 
@@ -114,22 +88,21 @@ export async function createSubmissionNotification(
   farmerName: string,
   submissionId: string
 ): Promise<void> {
-  notifications = getStoredNotifications();
-  
-  const notification: Notification = {
-    id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    userId: 'expert_1',
-    userType: 'expert',
-    type: 'new_submission',
-    title: 'New Diagnosis Submission',
-    message: `${farmerName} has submitted a diagnosis for expert review`,
-    submissionId,
-    timestamp: new Date(),
-    read: false
-  };
-
-  notifications.push(notification);
-  saveNotifications(notifications);
+  try {
+    const db = getAdminFirestore();
+    await db.collection('notifications').add({
+      userId: 'expert_1',
+      userType: 'expert',
+      type: 'new_submission',
+      title: 'New Diagnosis Submission',
+      message: `${farmerName} has submitted a diagnosis for expert review`,
+      submissionId,
+      timestamp: new Date(),
+      read: false,
+    });
+  } catch (error) {
+    console.error('Failed to create submission notification:', error);
+  }
 }
 
 export async function createStatusUpdateNotification(
@@ -138,17 +111,19 @@ export async function createStatusUpdateNotification(
   status: 'approved' | 'rejected',
   expertFeedback?: string
 ): Promise<void> {
-  const notification: Notification = {
-    id: `notif_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-    userId: farmerId,
-    userType: 'farmer',
-    type: 'status_update',
-    title: `Diagnosis ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-    message: expertFeedback || `Your diagnosis has been ${status} by an expert`,
-    submissionId,
-    timestamp: new Date(),
-    read: false
-  };
-
-  notifications.push(notification);
+  try {
+    const db = getAdminFirestore();
+    await db.collection('notifications').add({
+      userId: farmerId,
+      userType: 'farmer',
+      type: 'status_update',
+      title: `Diagnosis ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+      message: expertFeedback || `Your diagnosis has been ${status} by an expert`,
+      submissionId,
+      timestamp: new Date(),
+      read: false,
+    });
+  } catch (error) {
+    console.error('Failed to create status update notification:', error);
+  }
 }
