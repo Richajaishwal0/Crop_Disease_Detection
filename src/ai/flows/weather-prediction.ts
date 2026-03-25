@@ -16,18 +16,18 @@ import { z } from "zod";
 async function geocodeLocation(location: string) {
   const res = await fetch(
     `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
-      location,
-    )}&count=1&language=en&format=json`,
+      location
+    )}&count=1&language=en&format=json`
   );
 
   if (!res.ok) {
-    throw new Error("Failed to geocode location");
+    throw new Error('Failed to geocode location');
   }
 
   const data = await res.json();
 
   if (!data.results || data.results.length === 0) {
-    throw new Error("Location not found");
+    throw new Error('Location not found');
   }
 
   const place = data.results[0];
@@ -42,11 +42,11 @@ async function geocodeLocation(location: string) {
 // Fetch current weather from Open-Meteo
 async function fetchWeather(latitude: number, longitude: number) {
   const res = await fetch(
-    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&timezone=auto`,
+    `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,precipitation&timezone=auto`
   );
 
   if (!res.ok) {
-    throw new Error("Failed to fetch weather");
+    throw new Error('Failed to fetch weather');
   }
 
   const data = await res.json();
@@ -57,7 +57,7 @@ async function fetchWeather(latitude: number, longitude: number) {
     humidity: current.relative_humidity_2m,
     windSpeed: current.wind_speed_10m,
     precipitationChance: current.precipitation > 0 ? 60 : 0,
-    description: current.precipitation > 0 ? "Rainy" : "Clear / Cloudy",
+    description: current.precipitation > 0 ? 'Rainy' : 'Clear / Cloudy',
   };
 }
 
@@ -68,7 +68,9 @@ async function fetchWeather(latitude: number, longitude: number) {
 const WeatherAnalysisInputSchema = z.object({
   location: z.string(),
 });
-export type WeatherAnalysisInput = z.infer<typeof WeatherAnalysisInputSchema>;
+export type WeatherAnalysisInput = z.infer<
+  typeof WeatherAnalysisInputSchema
+>;
 
 const WeatherAnalysisOutputSchema = z.object({
   location: z.string(),
@@ -86,10 +88,12 @@ const WeatherAnalysisOutputSchema = z.object({
       category: z.string(),
       title: z.string(),
       tip: z.string(),
-    }),
+    })
   ),
 });
-export type WeatherAnalysisOutput = z.infer<typeof WeatherAnalysisOutputSchema>;
+export type WeatherAnalysisOutput = z.infer<
+  typeof WeatherAnalysisOutputSchema
+>;
 
 /* =====================================================
    3️⃣ PUBLIC ACTION
@@ -107,7 +111,7 @@ export async function getWeatherAnalysis(
 
 export const getWeatherAnalysisFlow = ai.defineFlow(
   {
-    name: "getWeatherAnalysisFlow",
+    name: 'getWeatherAnalysisFlow',
     inputSchema: WeatherAnalysisInputSchema,
     outputSchema: WeatherAnalysisOutputSchema,
   },
@@ -144,7 +148,7 @@ Return STRICT JSON in this format:
 `;
 
     const { output: advice } = await ai.generate({
-      model: "googleai/gemini-2.5-flash",
+      model: 'googleai/gemini-2.5-flash',
       prompt,
       output: {
         schema: z.object({
@@ -155,7 +159,7 @@ Return STRICT JSON in this format:
               category: z.string(),
               title: z.string(),
               tip: z.string(),
-            }),
+            })
           ),
         }),
       },
@@ -175,5 +179,5 @@ Return STRICT JSON in this format:
       recommendedCropsForHarvest: advice!.recommendedCropsForHarvest,
       recommendations: advice!.recommendations,
     };
-  },
+  }
 );
