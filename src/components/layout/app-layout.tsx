@@ -11,7 +11,7 @@ import { SidebarNav } from './sidebar-nav';
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const noLayoutPages = ['/', '/login', '/signup', '/welcome'];
-  const expertPages = pathname.startsWith('/expert');
+  const expertPages = pathname.startsWith('/expert/') || pathname === '/expert';
 
   if (noLayoutPages.includes(pathname) || expertPages) {
     return <>{children}</>;

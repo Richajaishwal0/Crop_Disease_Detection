@@ -75,15 +75,15 @@ export default function ExpertsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center py-20">
         <Loader2 className="h-8 w-8 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 max-w-6xl">
-      <div className="mb-8">
+    <div className="space-y-8">
+      <div>
         <h1 className="text-3xl font-bold font-headline mb-2">Agricultural Experts</h1>
         <p className="text-muted-foreground">Connect with verified agricultural experts</p>
       </div>

@@ -97,9 +97,11 @@ export async function createPost(
   };
   batch.set(newPostRef, newPost);
 
-  // 2. Increment the community's post count
-  const communityRef = doc(firestore, 'communities', postData.communityId);
-  batch.update(communityRef, { postCount: increment(1) });
+  // Only increment postCount if it's a real community (not 'general')
+  if (postData.communityId && postData.communityId !== 'general') {
+    const communityRef = doc(firestore, 'communities', postData.communityId);
+    batch.update(communityRef, { postCount: increment(1) });
+  }
 
 
   try {

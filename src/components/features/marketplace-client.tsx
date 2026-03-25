@@ -9,7 +9,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, ShoppingCart, Plus, Package } from 'lucide-react';
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../ui/card';
+import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { getMarketplaceProducts, addToCart, initializeMarketplace } from '@/app/actions/marketplace';
@@ -150,44 +150,57 @@ export function MarketplaceClient() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredProducts.map((product) => (
-            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="aspect-square overflow-hidden">
+            <Card key={product.id} className="group overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col">
+              {/* Image */}
+              <div className="relative aspect-[4/3] overflow-hidden bg-muted">
                 <img
                   src={product.imageUrl}
                   alt={product.name}
-                  className="w-full h-full object-cover hover:scale-105 transition-transform"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />
+                <Badge className="absolute top-2 left-2" variant="secondary">{product.category}</Badge>
+                {product.stock <= 10 && product.stock > 0 && (
+                  <Badge className="absolute top-2 right-2 bg-orange-500 text-white">Only {product.stock} left</Badge>
+                )}
+                {product.stock === 0 && (
+                  <Badge className="absolute top-2 right-2" variant="destructive">Out of Stock</Badge>
+                )}
               </div>
-              <CardHeader className="pb-2">
-                <div className="flex justify-between items-start">
-                  <CardTitle className="text-lg line-clamp-2">{product.name}</CardTitle>
-                  <Badge variant="secondary">{product.category}</Badge>
+
+              {/* Content */}
+              <div className="flex flex-col flex-1 p-4 gap-2">
+                <h3 className="font-semibold text-base line-clamp-2 leading-snug">{product.name}</h3>
+                <p className="text-xs text-muted-foreground line-clamp-2 flex-1">{product.description}</p>
+
+                {/* Rating */}
+                {product.rating && (
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} className={i < Math.floor(product.rating) ? 'text-yellow-400' : 'text-muted-foreground/30'}>★</span>
+                    ))}
+                    <span className="text-xs text-muted-foreground ml-1">{product.rating} ({product.reviews} reviews)</span>
+                  </div>
+                )}
+
+                {/* Price & Seller */}
+                <div className="flex items-end justify-between mt-1">
+                  <div>
+                    <span className="text-2xl font-bold text-primary">₹{product.price}</span>
+                  </div>
+                  <span className="text-xs text-muted-foreground">by {product.seller}</span>
                 </div>
-                <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-              </CardHeader>
-              <CardContent className="pb-2">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-2xl font-bold">${product.price}</span>
-                  {product.rating && (
-                    <div className="flex items-center gap-1">
-                      <span className="text-yellow-500">★</span>
-                      <span className="text-sm">{product.rating} ({product.reviews})</span>
-                    </div>
-                  )}
-                </div>
-                <p className="text-sm text-muted-foreground">by {product.seller}</p>
-                <p className="text-sm text-green-600">{product.stock} in stock</p>
-              </CardContent>
-              <CardFooter>
-                <Button 
-                  className="w-full" 
+
+                {/* Add to Cart */}
+                <Button
+                  className="w-full mt-2"
                   onClick={() => handleAddToCart(product.id)}
                   disabled={product.stock === 0}
+                  variant={product.stock === 0 ? 'outline' : 'default'}
                 >
                   <ShoppingCart className="mr-2 h-4 w-4" />
                   {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
                 </Button>
-              </CardFooter>
+              </div>
             </Card>
           ))}
         </div>
