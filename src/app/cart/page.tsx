@@ -137,8 +137,8 @@ export default function CartPage() {
                           </Button>
                         </div>
                         <div className="text-right">
-                          <p className="font-semibold">${(item.product.price * item.quantity).toFixed(2)}</p>
-                          <p className="text-sm text-muted-foreground">${item.product.price} each</p>
+                          <p className="font-semibold text-emerald-600 dark:text-emerald-400">₹{(item.product.price * item.quantity).toLocaleString()}</p>
+                          <p className="text-xs text-muted-foreground">₹{item.product.price} each</p>
                         </div>
                       </div>
                     </div>
@@ -162,18 +162,18 @@ export default function CartPage() {
                 <CardTitle>Order Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="flex justify-between">
-                  <span>Subtotal ({totalItems} items)</span>
-                  <span>${totalAmount.toFixed(2)}</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Subtotal ({totalItems} items)</span>
+                  <span className="font-semibold">₹{totalAmount.toLocaleString()}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>Shipping</span>
-                  <span className="text-green-600">Free</span>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Shipping</span>
+                  <span className="text-emerald-600 font-bold">{totalAmount >= 499 ? 'FREE' : '₹50'}</span>
                 </div>
                 <div className="border-t pt-4">
-                  <div className="flex justify-between font-semibold text-lg">
+                  <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>${totalAmount.toFixed(2)}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">₹{(totalAmount + (totalAmount >= 499 ? 0 : 50)).toLocaleString()}</span>
                   </div>
                 </div>
                 <Button 

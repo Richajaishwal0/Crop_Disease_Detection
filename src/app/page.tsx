@@ -29,14 +29,6 @@ export default function HomePage() {
           
           // Redirect based on role
           if (role === 'expert') {
-            // Store expert auth for dashboard access
-            localStorage.setItem('expertAuth', JSON.stringify({
-              id: user.uid,
-              name: userData.displayName || user.displayName,
-              email: user.email,
-              specialization: userData.specialization || 'Agricultural Expert',
-              role: 'expert'
-            }));
             router.replace('/expert/dashboard');
           } else {
             // Farmers and regular users go to main dashboard

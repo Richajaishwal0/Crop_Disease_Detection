@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { SidebarTrigger } from '@/components/ui/sidebar';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser } from '@/firebase';
 import { Bell, LogOut, Search, User as UserIcon, Settings, X, CheckCheck } from 'lucide-react';
 import Link from 'next/link';
 import { signOut } from 'firebase/auth';
@@ -22,8 +22,6 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Input } from '../ui/input';
 import { useSearch } from '@/context/search-provider';
 import { useState, useEffect, useMemo } from 'react';
-import { collection, query, where } from 'firebase/firestore';
-import { useCollection } from '@/firebase/firestore/use-collection';
 import { getNotifications, markAllNotificationsAsRead, deleteNotification } from '@/app/actions/expert-review';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
@@ -31,7 +29,6 @@ import { useToast } from '@/hooks/use-toast';
 export function Header() {
   const { user } = useUser();
   const auth = useAuth();
-  const firestore = useFirestore();
   const pathname = usePathname();
   const router = useRouter();
   const { searchTerm, setSearchTerm } = useSearch();
@@ -43,16 +40,18 @@ export function Header() {
 
   // Load notifications
   useEffect(() => {
-    if (user) {
+    if (user?.uid) {
       loadNotifications();
+    } else {
+      setNotifications([]);
     }
-  }, [user]);
+  }, [user?.uid]);
 
   const loadNotifications = async () => {
-    if (!user) return;
+    if (!user?.uid) return;
     try {
       const userNotifications = await getNotifications(user.uid, 'farmer');
-      setNotifications(userNotifications);
+      setNotifications(userNotifications || []);
     } catch (error) {
       console.error('Error loading notifications:', error);
       setNotifications([]);
@@ -60,7 +59,7 @@ export function Header() {
   };
 
   const handleMarkAllRead = async () => {
-    if (!user) return;
+    if (!user?.uid) return;
     try {
       const result = await markAllNotificationsAsRead(user.uid, 'farmer');
       if (result.success) {
@@ -87,26 +86,6 @@ export function Header() {
   const unreadNotifications = useMemo(() => {
     return notifications.filter(n => !n.read).length;
   }, [notifications]);
-
-  // Get unread message count
-  const conversationsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return query(
-      collection(firestore, 'conversations'),
-      where('participants', 'array-contains', user.uid)
-    );
-  }, [firestore, user]);
-
-  const { data: conversations } = useCollection(conversationsQuery);
-  
-  const unreadCount = useMemo(() => {
-    if (!conversations || !user) return 0;
-    return conversations.filter(conv => {
-      const lastMessageDate = conv.lastMessage?.createdAt?.toDate() || new Date(0);
-      const lastReadDate = conv.lastRead?.[user.uid]?.toDate() || new Date(0);
-      return lastMessageDate > lastReadDate && conv.lastMessage?.senderId !== user.uid;
-    }).length;
-  }, [conversations, user]);
 
   const handleLogout = async () => {
     if (auth) {
@@ -249,13 +228,13 @@ export function Header() {
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
               <DropdownMenuItem asChild>
-                <Link href="/profile">
+                <Link href="/profile" prefetch={true}>
                   <UserIcon className="mr-2 h-4 w-4" />
                   <span>Profile</span>
                 </Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/settings">
+                <Link href="/settings" prefetch={true}>
                   <Settings className="mr-2 h-4 w-4" />
                   <span>Settings</span>
                 </Link>
@@ -270,10 +249,10 @@ export function Header() {
         ) : (
           <div className="flex items-center gap-2">
             <Button variant="outline" asChild>
-              <Link href="/login">Log In</Link>
+              <Link href="/login" prefetch={true}>Log In</Link>
             </Button>
             <Button asChild>
-              <Link href="/signup">Sign Up</Link>
+              <Link href="/signup" prefetch={true}>Sign Up</Link>
             </Button>
           </div>
         )}

@@ -98,9 +98,8 @@ export default function OrdersPage() {
                         <Calendar className="h-4 w-4" />
                         {new Date(order.createdAt?.toDate?.() || order.createdAt).toLocaleDateString()}
                       </div>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="h-4 w-4" />
-                        ${order.totalAmount.toFixed(2)}
+                      <div className="flex items-center gap-1 font-semibold text-emerald-600">
+                        ₹{order.totalAmount.toLocaleString()}
                       </div>
                     </div>
                   </div>
@@ -144,10 +143,10 @@ export default function OrdersPage() {
                           <div>
                             <p className="font-medium">{item.name}</p>
                             <p className="text-sm text-muted-foreground">
-                              Quantity: {item.quantity} × ${item.price}
+                              Quantity: {item.quantity} × ₹{item.price}
                             </p>
                           </div>
-                          <p className="font-semibold">${item.total.toFixed(2)}</p>
+                          <p className="font-semibold text-emerald-600">₹{(item.total || item.price * item.quantity).toLocaleString()}</p>
                         </div>
                       ))}
                     </div>

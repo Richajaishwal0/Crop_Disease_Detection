@@ -4,6 +4,7 @@ import type { FirebaseApp } from 'firebase/app';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import { UserProvider } from './auth/use-user';
 
 export interface FirebaseServices {
   app: FirebaseApp;
@@ -27,8 +28,10 @@ export const FirebaseProvider = ({
     <FirebaseContext.Provider value={app}>
       <AuthContext.Provider value={auth}>
         <FirestoreContext.Provider value={firestore}>
-          {children}
-          <FirebaseErrorListener />
+          <UserProvider>
+            {children}
+            <FirebaseErrorListener />
+          </UserProvider>
         </FirestoreContext.Provider>
       </AuthContext.Provider>
     </FirebaseContext.Provider>

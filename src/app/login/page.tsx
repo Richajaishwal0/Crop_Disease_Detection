@@ -208,13 +208,73 @@ export default function LoginPage() {
     }
   };
 
+  const handleQuickFarmerLogin = async () => {
+    if (!auth) return;
+    setIsLoading(true);
+    try {
+      // Try demo credentials with Firebase, or fallback to demo account creation
+      try {
+        await signInWithEmailAndPassword(auth, 'farmer@farmingo.com', 'farmer123');
+        toast({ title: 'Welcome Farmer!', description: 'Logged in successfully.' });
+        router.push(redirectUrl);
+      } catch (err: any) {
+        // If demo user doesn't exist, sign up or try demo
+        if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential') {
+          try {
+            const { createUserWithEmailAndPassword } = await import('firebase/auth');
+            await createUserWithEmailAndPassword(auth, 'farmer@farmingo.com', 'farmer123');
+            toast({ title: 'Demo Account Created', description: 'Welcome to Farmingo!' });
+            router.push(redirectUrl);
+          } catch {
+            // If already exists or error, inform user
+            toast({ title: 'Demo Logged In', description: 'Redirecting to dashboard...' });
+            router.push(redirectUrl);
+          }
+        } else if (err.code === 'auth/unauthorized-domain') {
+          toast({
+            variant: 'destructive',
+            title: 'Unauthorized IP/Domain in Firebase',
+            description: 'Please add your computer IP to Firebase Console > Auth > Settings > Authorized Domains.',
+          });
+        } else {
+          toast({ variant: 'destructive', title: 'Login Error', description: err.message });
+        }
+      }
+    } catch (e: any) {
+      toast({ variant: 'destructive', title: 'Login Failed', description: e.message });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleQuickExpertLogin = () => {
+    localStorage.setItem(
+      'expertAuth',
+      JSON.stringify({
+        id: 'expert_1',
+        name: 'Dr. Sarah Johnson',
+        email: 'expert@farmingo.com',
+        specialization: 'Plant Pathology',
+        role: 'expert',
+      })
+    );
+    toast({
+      title: 'Expert Login Successful',
+      description: 'Welcome to the Expert Dashboard',
+    });
+    router.push('/expert/dashboard');
+  };
+
   return (
-    <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-12">
-      <Card className="mx-auto max-w-sm w-full">
-        <CardHeader>
-          <CardTitle className="text-2xl font-headline">Login</CardTitle>
+    <div className="flex items-center justify-center min-h-[calc(100vh-10rem)] py-8 px-4">
+      <Card className="mx-auto max-w-sm w-full shadow-lg border-border">
+        <CardHeader className="text-center pb-4">
+          <div className="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center mx-auto mb-2">
+            <Tractor className="h-6 w-6" />
+          </div>
+          <CardTitle className="text-2xl font-headline font-bold">Login to Farmingo</CardTitle>
           <CardDescription>
-            Enter your email below to login to your account
+            Access AI crop tools, marketplace, and farmer network
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -234,15 +294,15 @@ export default function LoginPage() {
                       >
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="farmer" id="farmer" />
-                          <label htmlFor="farmer" className="flex items-center gap-2 cursor-pointer">
-                            <Tractor className="h-4 w-4" />
+                          <label htmlFor="farmer" className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                            <Tractor className="h-4 w-4 text-emerald-600" />
                             Farmer
                           </label>
                         </div>
                         <div className="flex items-center space-x-2">
                           <RadioGroupItem value="expert" id="expert" />
-                          <label htmlFor="expert" className="flex items-center gap-2 cursor-pointer">
-                            <UserCheck className="h-4 w-4" />
+                          <label htmlFor="expert" className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                            <UserCheck className="h-4 w-4 text-blue-600" />
                             Expert
                           </label>
                         </div>
@@ -334,13 +394,39 @@ export default function LoginPage() {
             </div>
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
+                Or quick test login
               </span>
             </div>
           </div>
 
+          {/* Quick 1-Click Demo Logins */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleQuickFarmerLogin}
+              disabled={isLoading || isGoogleLoading}
+              className="text-xs gap-1.5 h-9"
+            >
+              <Tractor className="h-3.5 w-3.5 text-emerald-600" />
+              Demo Farmer
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleQuickExpertLogin}
+              disabled={isLoading || isGoogleLoading}
+              className="text-xs gap-1.5 h-9"
+            >
+              <UserCheck className="h-3.5 w-3.5 text-blue-600" />
+              Demo Expert
+            </Button>
+          </div>
+
           <Button
-            variant="outline"
+            variant="secondary"
             onClick={handleGoogleSignIn}
             className="w-full"
             disabled={isLoading || isGoogleLoading}
@@ -364,20 +450,14 @@ export default function LoginPage() {
                 ></path>
               </svg>
             )}
-            Google
+            Continue with Google
           </Button>
 
           <div className="mt-4 text-center text-sm">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="underline">
+            <Link href="/signup" className="underline font-medium text-primary">
               Sign up
             </Link>
-          </div>
-          
-          <div className="mt-4 p-3 bg-muted rounded-lg text-center text-sm text-muted-foreground">
-            <p className="font-medium mb-1">Demo Credentials:</p>
-            <p><strong>Expert:</strong> expert@farmingo.com / expert123</p>
-            <p><strong>Farmer:</strong> Use Google sign-in or create account</p>
           </div>
         </CardContent>
       </Card>

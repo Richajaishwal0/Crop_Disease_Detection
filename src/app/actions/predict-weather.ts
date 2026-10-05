@@ -19,9 +19,8 @@ export async function getWeatherAnalysisAction(
   try {
     const result = await getWeatherAnalysis({ location });
     return { success: true, data: result };
-  } catch (e) {
-    console.error(e);
-    // In a production app, you'd want to log this error to a monitoring service.
-    return { success: false, error: 'Failed to get weather analysis from AI model.' };
+  } catch (e: any) {
+    console.error('Weather analysis action error:', e);
+    return { success: false, error: e.message || 'Failed to get weather analysis. Please try a nearby city.' };
   }
 }

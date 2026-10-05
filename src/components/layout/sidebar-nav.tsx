@@ -1,4 +1,3 @@
-
 'use client';
 
 import {
@@ -13,6 +12,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signOut } from 'firebase/auth';
@@ -31,19 +31,14 @@ import {
   UserPlus,
   Users,
   Settings,
-  Bell,
-  GraduationCap
 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useLanguage } from '@/context/language-provider';
 import { useCollection } from '@/firebase/firestore/use-collection';
 import { collection, query, where } from 'firebase/firestore';
-import { getNotifications } from '@/app/actions/expert-review';
-
-
 
 type NavCategoryProps = {
   title: string;
@@ -56,53 +51,12 @@ type NavCategoryProps = {
   }[];
   user: any;
   pathname: string;
+  unreadCount?: number;
+  onNavigate?: () => void;
 };
 
-function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
+function NavCategory({ title, items, user, pathname, unreadCount = 0, onNavigate }: NavCategoryProps) {
   const [isOpen, setIsOpen] = useState(true);
-  const [notifications, setNotifications] = useState<any[]>([]);
-  const firestore = useFirestore();
-  
-  // Load notifications for current user
-  useEffect(() => {
-    if (user) {
-      loadUserNotifications();
-    }
-  }, [user]);
-
-  const loadUserNotifications = async () => {
-    if (!user) return;
-    try {
-      const userNotifications = await getNotifications(user.uid, 'farmer');
-      setNotifications(userNotifications);
-    } catch (error) {
-      console.error('Error loading notifications:', error);
-    }
-  };
-  
-  // Get unread message count
-  const conversationsQuery = useMemo(() => {
-    if (!firestore || !user) return null;
-    return query(
-      collection(firestore, 'conversations'),
-      where('participants', 'array-contains', user.uid)
-    );
-  }, [firestore, user]);
-
-  const { data: conversations } = useCollection(conversationsQuery);
-  
-  const unreadCount = useMemo(() => {
-    if (!conversations || !user) return 0;
-    return conversations.filter(conv => {
-      const lastMessageDate = conv.lastMessage?.createdAt?.toDate() || new Date(0);
-      const lastReadDate = conv.lastRead?.[user.uid]?.toDate() || new Date(0);
-      return lastMessageDate > lastReadDate && conv.lastMessage?.senderId !== user.uid;
-    }).length;
-  }, [conversations, user]);
-
-  const unreadNotifications = useMemo(() => {
-    return notifications.filter(n => !n.read).length;
-  }, [notifications]);
   
   const filteredItems = items.filter(item => !item.requiresAuth || user);
 
@@ -131,7 +85,7 @@ function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
                 disabled={item.disabled}
                 tooltip={item.label}
               >
-                <Link href={item.href}>
+                <Link href={item.href} prefetch={true} onClick={onNavigate}>
                   <item.icon />
                   <span>{item.label}</span>
                   {item.href === '/messages' && unreadCount > 0 && (
@@ -145,26 +99,26 @@ function NavCategory({ title, items, user, pathname }: NavCategoryProps) {
           ))}
         </SidebarMenu>
       </CollapsibleContent>
-       {/* Render icons only when collapsed */}
-       <div className="hidden group-data-[collapsible=icon]:block">
-          <SidebarMenu>
-            {filteredItems.map(item => (
-              <SidebarMenuItem key={item.label}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
-                  disabled={item.disabled}
-                  tooltip={item.label}
-                >
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span className="sr-only">{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        </div>
+      {/* Render icons only when collapsed on desktop */}
+      <div className="hidden group-data-[collapsible=icon]:block">
+        <SidebarMenu>
+          {filteredItems.map(item => (
+            <SidebarMenuItem key={item.label}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname.startsWith(item.href) && (item.href !== '/' || pathname === '/')}
+                disabled={item.disabled}
+                tooltip={item.label}
+              >
+                <Link href={item.href} prefetch={true} onClick={onNavigate}>
+                  <item.icon />
+                  <span className="sr-only">{item.label}</span>
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
+        </SidebarMenu>
+      </div>
     </Collapsible>
   );
 }
@@ -173,7 +127,34 @@ export function SidebarNav() {
   const pathname = usePathname();
   const { user } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { t } = useLanguage();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const handleNavigate = () => {
+    if (isMobile) {
+      setOpenMobile(false);
+    }
+  };
+
+  const conversationsQuery = useMemo(() => {
+    if (!firestore || !user) return null;
+    return query(
+      collection(firestore, 'conversations'),
+      where('participants', 'array-contains', user.uid)
+    );
+  }, [firestore, user?.uid]);
+
+  const { data: conversations } = useCollection(conversationsQuery);
+  
+  const unreadCount = useMemo(() => {
+    if (!conversations || !user) return 0;
+    return conversations.filter(conv => {
+      const lastMessageDate = conv.lastMessage?.createdAt?.toDate() || new Date(0);
+      const lastReadDate = conv.lastRead?.[user.uid]?.toDate() || new Date(0);
+      return lastMessageDate > lastReadDate && conv.lastMessage?.senderId !== user.uid;
+    }).length;
+  }, [conversations, user?.uid]);
 
   const mainNav = [{ href: '/dashboard', label: t.dashboard, icon: LayoutDashboard }];
   const aiToolsNav = [
@@ -192,9 +173,9 @@ export function SidebarNav() {
   ];
 
   const handleLogout = async () => {
+    handleNavigate();
     if (auth) {
       await signOut(auth);
-      // Redirect to home or login page after logout
       window.location.href = '/';
     }
   };
@@ -219,7 +200,7 @@ export function SidebarNav() {
                 disabled={item.disabled}
                 tooltip={item.label}
               >
-                <Link href={item.href}>
+                <Link href={item.href} prefetch={true} onClick={handleNavigate}>
                   <item.icon />
                   <span>{item.label}</span>
                 </Link>
@@ -228,9 +209,9 @@ export function SidebarNav() {
           ))}
         </SidebarMenu>
 
-        <NavCategory title={t.aiTools} items={aiToolsNav} user={user} pathname={pathname} />
-        <NavCategory title={t.platform} items={platformNav} user={user} pathname={pathname} />
-        <NavCategory title={t.account} items={userNav} user={user} pathname={pathname} />
+        <NavCategory title={t.aiTools} items={aiToolsNav} user={user} pathname={pathname} onNavigate={handleNavigate} />
+        <NavCategory title={t.platform} items={platformNav} user={user} pathname={pathname} unreadCount={unreadCount} onNavigate={handleNavigate} />
+        <NavCategory title={t.account} items={userNav} user={user} pathname={pathname} onNavigate={handleNavigate} />
 
       </SidebarContent>
       <SidebarFooter>
@@ -246,7 +227,7 @@ export function SidebarNav() {
             <>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname === '/login'} tooltip={t.login}>
-                  <Link href="/login">
+                  <Link href="/login" prefetch={true} onClick={handleNavigate}>
                     <LogIn />
                     <span>{t.login}</span>
                   </Link>
@@ -254,7 +235,7 @@ export function SidebarNav() {
               </SidebarMenuItem>
               <SidebarMenuItem>
                 <SidebarMenuButton asChild isActive={pathname === '/signup'} tooltip={t.signup}>
-                  <Link href="/signup">
+                  <Link href="/signup" prefetch={true} onClick={handleNavigate}>
                     <UserPlus />
                     <span>{t.signup}</span>
                   </Link>

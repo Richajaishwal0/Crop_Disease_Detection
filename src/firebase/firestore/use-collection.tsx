@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import type {
   Query,
   DocumentData,
@@ -19,26 +19,18 @@ export function useCollection<T = DocumentData>(
   query: Query | null
 ): HookResponse<T> {
   const [data, setData] = useState<(T & { id: string })[] | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(Boolean(query));
   const [error, setError] = useState<FirestoreError | null>(null);
-  
-  const queryRef = useRef(query);
 
   useEffect(() => {
-    // If the query is null or has changed, reset the state
-    if (query !== queryRef.current) {
-        setData(null);
-        setLoading(true);
-        setError(null);
-        queryRef.current = query;
-    }
-
-    if (query === null) {
+    if (!query) {
+      setData(null);
       setLoading(false);
+      setError(null);
       return;
     }
-    
-    // setLoading(true) is now handled by the reset logic above
+
+    setLoading(true);
 
     const unsubscribe = onSnapshot(
       query,
@@ -52,13 +44,12 @@ export function useCollection<T = DocumentData>(
       },
       (err) => {
         if (err.code === 'permission-denied') {
-            // Firestore queries don't have a public `path` property, this is a workaround
-            const path = (query as any)._query?.path?.segments.join('/');
-            const permissionError = new FirestorePermissionError({
-                path: path || 'unknown path',
-                operation: 'list',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+          const path = (query as any)._query?.path?.segments?.join('/') || 'unknown path';
+          const permissionError = new FirestorePermissionError({
+            path,
+            operation: 'list',
+          });
+          errorEmitter.emit('permission-error', permissionError);
         }
         setError(err);
         setLoading(false);
@@ -66,9 +57,8 @@ export function useCollection<T = DocumentData>(
     );
 
     return () => unsubscribe();
-  // We use a stable string representation of the query for the dependency array
-  // This is a common pattern for Firestore hooks to prevent re-renders
-  }, [query ? query.path : null, query ? JSON.stringify(query.where) : null, query ? JSON.stringify(query.orderBy) : null, query]);
+  }, [query]);
 
   return { data, loading, error };
 }
+

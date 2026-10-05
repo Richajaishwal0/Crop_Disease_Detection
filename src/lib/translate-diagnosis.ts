@@ -20,6 +20,8 @@ export async function translateDiagnosis(
 
   try {
     const textToTranslate = `
+Plant Name: ${diagnosis.plantName || ''}
+Plant Description: ${diagnosis.plantDescription || ''}
 Disease Name: ${diagnosis.diseaseName}
 Severity: ${diagnosis.affectedSeverity}
 Cause: ${diagnosis.cause}
@@ -42,6 +44,8 @@ Preventive Measures: ${diagnosis.preventiveMeasures}
 
     return {
       ...diagnosis,
+      plantName: extractValue('Plant Name') || diagnosis.plantName,
+      plantDescription: extractValue('Plant Description') || diagnosis.plantDescription,
       diseaseName: extractValue('Disease Name') || diagnosis.diseaseName,
       affectedSeverity: extractValue('Severity') || diagnosis.affectedSeverity,
       cause: extractValue('Cause') || diagnosis.cause,

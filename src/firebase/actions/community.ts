@@ -61,13 +61,14 @@ export async function createPost(
   batch.update(communityRef, { postCount: increment(1) });
 
 
-  batch.commit().catch(async (serverError) => {
+  await batch.commit().catch(async (serverError) => {
     const permissionError = new FirestorePermissionError({
       path: newPostRef.path,
       operation: 'create',
       requestResourceData: newPost,
     } satisfies SecurityRuleContext);
     errorEmitter.emit('permission-error', permissionError);
+    throw serverError;
   });
 }
 
@@ -142,13 +143,14 @@ export async function addComment(
     batch.update(parentCommentRef, { replyCount: increment(1) });
   }
 
-  batch.commit().catch(async (serverError) => {
+  await batch.commit().catch(async (serverError) => {
     const permissionError = new FirestorePermissionError({
       path: newCommentRef.path,
       operation: 'create',
       requestResourceData: newComment,
     } satisfies SecurityRuleContext);
     errorEmitter.emit('permission-error', permissionError);
+    throw serverError;
   });
 }
 

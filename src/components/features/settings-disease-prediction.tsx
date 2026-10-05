@@ -28,6 +28,8 @@ import { Badge } from '@/components/ui/badge';
 import Image from 'next/image';
 import { Separator } from '../ui/separator';
 
+import { CameraLeafScanner } from './camera-leaf-scanner';
+
 const diseaseFormSchema = z.object({
     crop_name: z.string().min(1, 'Crop name is required.'),
     file: z.instanceof(File).refine(file => file.size > 0, 'An image file is required.'),
@@ -50,7 +52,6 @@ export function SettingsDiseasePrediction() {
   const [diseaseResponse, setDiseaseResponse] = useState<DiseaseResponse | null>(null);
   const [isDiseaseLoading, setIsDiseaseLoading] = useState(false);
   const [diseaseImagePreview, setDiseaseImagePreview] = useState<string | null>(null);
-  const diseaseFileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const diseaseForm = useForm<z.infer<typeof diseaseFormSchema>>({
@@ -61,22 +62,22 @@ export function SettingsDiseasePrediction() {
     },
   });
 
-
-const handleDiseaseFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
+  const handleImageSelected = (dataUri: string, file?: File) => {
     if (file) {
-        if (file.size > 4 * 1024 * 1024) { // 4MB limit
-            toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image under 4MB.'})
-            return;
-        }
-        diseaseForm.setValue('file', file);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setDiseaseImagePreview(reader.result as string);
-        };
-        reader.readAsDataURL(file);
+      if (file.size > 5 * 1024 * 1024) {
+        toast({ variant: 'destructive', title: 'Image too large', description: 'Please upload an image under 5MB.' });
+        return;
+      }
+      diseaseForm.setValue('file', file, { shouldValidate: true });
     }
-}
+    setDiseaseImagePreview(dataUri);
+  };
+
+  const handleReset = () => {
+    setDiseaseImagePreview(null);
+    setDiseaseResponse(null);
+    diseaseForm.resetField('file');
+  };
 
 async function onDiseaseSubmit(values: z.infer<typeof diseaseFormSchema>) {
     setIsDiseaseLoading(true);
@@ -108,9 +109,9 @@ async function onDiseaseSubmit(values: z.infer<typeof diseaseFormSchema>) {
     <div className="grid gap-8 lg:grid-cols-2">
       <Card>
         <CardHeader>
-          <CardTitle>Upload Crop Image</CardTitle>
+          <CardTitle>Scan Crop Leaf</CardTitle>
            <CardDescription>
-            For best results, use a clear photo of the affected area.
+            Point your camera at the plant leaf or upload an image.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -123,7 +124,7 @@ async function onDiseaseSubmit(values: z.infer<typeof diseaseFormSchema>) {
                     <FormItem>
                       <FormLabel>Crop Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., chilli" {...field} />
+                        <Input placeholder="e.g., chilli, tomato, wheat" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -134,36 +135,18 @@ async function onDiseaseSubmit(values: z.infer<typeof diseaseFormSchema>) {
                     name="file"
                     render={() => (
                         <FormItem>
-                            <FormLabel>Image File</FormLabel>
-                             <div
-                                className="w-full h-48 border-2 border-dashed rounded-lg flex flex-col items-center justify-center p-6 text-center cursor-pointer hover:border-primary hover:bg-accent/10 transition-colors"
-                                onClick={() => diseaseFileInputRef.current?.click()}
-                            >
-                                <FormControl>
-                                    <Input type="file" accept="image/*" onChange={handleDiseaseFileChange} ref={diseaseFileInputRef} className="hidden"/>
-                                </FormControl>
-                                {isDiseaseLoading ? (
-                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                                ) : diseaseImagePreview ? (
-                                    <Image
-                                        src={diseaseImagePreview}
-                                        alt="Crop preview"
-                                        width={150}
-                                        height={150}
-                                        className="max-h-full w-auto rounded-md object-contain"
-                                    />
-                                    ) : (
-                                    <>
-                                        <Upload className="h-12 w-12 text-muted-foreground" />
-                                        <p className="mt-2 font-semibold">Click to upload image</p>
-                                    </>
-                                )}
-                            </div>
+                            <FormLabel>Crop Leaf Image</FormLabel>
+                            <CameraLeafScanner
+                              onImageSelected={handleImageSelected}
+                              isLoading={isDiseaseLoading}
+                              selectedImage={diseaseImagePreview}
+                              onReset={handleReset}
+                            />
                             <FormMessage />
                         </FormItem>
                     )}
                  />
-              <Button type="submit" disabled={isDiseaseLoading} className="w-full">
+              <Button type="submit" disabled={isDiseaseLoading || !diseaseImagePreview} className="w-full">
                 {isDiseaseLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Bug className="mr-2 h-4 w-4" />}
                 Predict Disease
               </Button>

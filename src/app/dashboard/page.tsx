@@ -47,8 +47,8 @@ export default function DashboardPage() {
 
   const welcomeMessage = () => {
     if (loading) return <Skeleton className="h-10 w-1/2" />;
-    if (user?.displayName) return `${t.welcomeFarmer.replace('Farmer', user.displayName).replace('किसान', user.displayName).replace('शेतकरी', user.displayName)}`;
-    return t.welcomeFarmer;
+    const name = user?.displayName || '';
+    return name ? t.welcomeFarmer.replace(/Farmer|किसान|शेतकरी/, name) : t.welcomeFarmer;
   };
 
   const filteredAiTools = useMemo(() => {
@@ -117,7 +117,7 @@ export default function DashboardPage() {
                     variant={feature.disabled ? 'secondary' : 'default'}
                     disabled={feature.disabled}
                   >
-                    <Link href={feature.href}>
+                    <Link href={feature.href} prefetch={true}>
                       {feature.disabled ? t.comingSoon : t.getStarted}{' '}
                       {!feature.disabled && (
                         <ArrowRight className="ml-2 h-4 w-4" />
@@ -126,7 +126,7 @@ export default function DashboardPage() {
                   </Button>
                 </CardFooter>
               </Card>
-            ))}}}
+            ))}
           </div>
         ) : (
           <p className="text-muted-foreground text-center py-4">{t.noAiToolsFound}</p>
@@ -168,7 +168,7 @@ export default function DashboardPage() {
                     variant={feature.disabled ? 'secondary' : 'default'}
                     disabled={feature.disabled}
                     >
-                    <Link href={feature.href}>
+                    <Link href={feature.href} prefetch={true}>
                         {feature.disabled ? t.comingSoon : `${t.goTo} ${feature.title}`}
                         {!feature.disabled && (
                         <ArrowRight className="ml-2 h-4 w-4" />

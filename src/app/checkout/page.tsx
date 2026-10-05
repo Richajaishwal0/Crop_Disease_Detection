@@ -49,7 +49,7 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     zipCode: '',
-    country: 'United States'
+    country: 'India'
   });
 
   const [paymentInfo, setPaymentInfo] = useState<PaymentInfo>({
@@ -143,9 +143,8 @@ export default function CheckoutPage() {
   };
 
   const totalAmount = cartItems.reduce((sum, item) => sum + (item.product.price * item.quantity), 0);
-  const shippingCost = totalAmount > 100 ? 0 : 9.99;
-  const tax = totalAmount * 0.08;
-  const finalTotal = totalAmount + shippingCost + tax;
+  const shippingCost = totalAmount >= 499 ? 0 : 50;
+  const finalTotal = totalAmount + shippingCost;
 
   if (!user) {
     return (
@@ -352,47 +351,43 @@ export default function CheckoutPage() {
                 {cartItems.map((item) => (
                   <div key={item.id} className="flex justify-between items-center">
                     <div className="flex-1">
-                      <p className="font-medium">{item.product.name}</p>
-                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                      <p className="font-medium text-sm">{item.product.name}</p>
+                      <p className="text-xs text-muted-foreground">Qty: {item.quantity} × ₹{item.product.price}</p>
                     </div>
-                    <p className="font-medium">${(item.product.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-semibold text-emerald-600">₹{(item.product.price * item.quantity).toLocaleString()}</p>
                   </div>
                 ))}
               </div>
               
               <Separator />
               
-              <div className="space-y-2">
+              <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span>Subtotal</span>
-                  <span>${totalAmount.toFixed(2)}</span>
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-semibold">₹{totalAmount.toLocaleString()}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Shipping</span>
-                  <span>{shippingCost === 0 ? 'Free' : `$${shippingCost.toFixed(2)}`}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tax</span>
-                  <span>${tax.toFixed(2)}</span>
+                  <span className="text-muted-foreground">Shipping</span>
+                  <span className="text-emerald-600 font-bold">{shippingCost === 0 ? 'FREE' : `₹${shippingCost}`}</span>
                 </div>
                 <Separator />
-                <div className="flex justify-between font-semibold text-lg">
-                  <span>Total</span>
-                  <span>${finalTotal.toFixed(2)}</span>
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Total Payable</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">₹{finalTotal.toLocaleString()}</span>
                 </div>
               </div>
               
               <Button 
-                className="w-full" 
+                className="w-full h-11 font-bold rounded-xl bg-emerald-600 hover:bg-emerald-700" 
                 size="lg"
                 onClick={handlePlaceOrder}
                 disabled={processing}
               >
-                {processing ? 'Processing...' : `Place Order - $${finalTotal.toFixed(2)}`}
+                {processing ? 'Processing...' : `Place Order • ₹${finalTotal.toLocaleString()}`}
               </Button>
               
               <Link href="/cart">
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full rounded-xl">
                   Back to Cart
                 </Button>
               </Link>

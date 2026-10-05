@@ -102,29 +102,66 @@ export function generateDiagnosisReport(
   pdf.text(`Report Time: ${new Date().toLocaleTimeString('en-US')}`, 20, yPos + 15);
   pdf.text(`Farmer Name: ${farmerName}`, 20, yPos + 22);
   
-  yPos += 35;
-  
+  // Plant Identification Section
+  if (diagnosis.plantName) {
+    pdf.setFillColor(34, 139, 34);
+    pdf.rect(15, yPos, 180, 8, 'F');
+    pdf.setFontSize(13);
+    pdf.setTextColor(255, 255, 255);
+    pdf.text('PLANT IDENTIFICATION & PROFILE', 20, yPos + 6);
+    yPos += 14;
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFont(undefined, 'bold');
+    pdf.text('Plant / Crop:', 20, yPos);
+    pdf.setFont(undefined, 'normal');
+    pdf.text(diagnosis.plantName + (diagnosis.scientificName ? ` (${diagnosis.scientificName})` : ''), 60, yPos);
+    yPos += 6;
+
+    if (diagnosis.plantCategory) {
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Category:', 20, yPos);
+      pdf.setFont(undefined, 'normal');
+      pdf.text(diagnosis.plantCategory, 60, yPos);
+      yPos += 6;
+    }
+
+    if (diagnosis.plantDescription) {
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Growing Profile:', 20, yPos);
+      pdf.setFont(undefined, 'normal');
+      const descLines = pdf.splitTextToSize(diagnosis.plantDescription, 130);
+      pdf.text(descLines, 60, yPos);
+      yPos += descLines.length * 5 + 3;
+    }
+
+    yPos += 4;
+  }
+
   // Disease Identification Section
   pdf.setFillColor(220, 20, 60);
+  pdf.rect(15, yPos, 8, 'F');
+  pdf.setFillColor(220, 20, 60);
   pdf.rect(15, yPos, 180, 8, 'F');
-  pdf.setFontSize(14);
+  pdf.setFontSize(13);
   pdf.setTextColor(255, 255, 255);
-  pdf.text('DISEASE IDENTIFICATION', 20, yPos + 6);
-  yPos += 15;
+  pdf.text('PATHOLOGY & DISEASE DIAGNOSIS', 20, yPos + 6);
+  yPos += 14;
   
-  pdf.setFontSize(11);
+  pdf.setFontSize(10);
   pdf.setTextColor(0, 0, 0);
   pdf.setFont(undefined, 'bold');
   pdf.text('Disease Name:', 20, yPos);
   pdf.setFont(undefined, 'normal');
   pdf.text(diagnosis.diseaseName, 60, yPos);
-  yPos += 7;
+  yPos += 6;
   
   pdf.setFont(undefined, 'bold');
   pdf.text('Severity Level:', 20, yPos);
   pdf.setFont(undefined, 'normal');
   pdf.text(diagnosis.affectedSeverity, 60, yPos);
-  yPos += 7;
+  yPos += 6;
   
   pdf.setFont(undefined, 'bold');
   pdf.text('AI Confidence:', 20, yPos);
